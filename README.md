@@ -48,13 +48,16 @@ professor of engineering has bested its own record by a factor of two with an el
 -----------------------------------------------
 ## 🎯 Accuracy
 Here is the number of product reviews we used for finetuning the model:
+
 | Language | Number of text samples|
 | -------- | ----------------- |
 | English  | 560,000           |
+
 We found the best convergence around _**3 epochs**_, which is what presented here and available via a download.
 
 -----------------------------------------------
 The fine-tuned model obtained the following accuracy on 45,990 held-out text samples:
+
 | Accuracy | Overall F1 | Eval Support |
 | -------- | ---------------------- | ------------------- |
 | 91%  | 90%                 | 45,990
