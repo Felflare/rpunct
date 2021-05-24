@@ -64,7 +64,7 @@ class RestorePuncts:
         Example output:
         [{...}, {"text": "...", 'start_idx': 31354, 'end_idx': 32648}, {...}]
         """
-        wrds = text.split(" ")
+        wrds = text.replace('\n', ' ').split(" ")
         resp = []
         lst_chunk_idx = 0
         i = 0
@@ -101,7 +101,7 @@ class RestorePuncts:
         Given a full text and predictions of each slice combines predictions into a single text again.
         Performs validataion wether text was combined correctly
         """
-        split_full_text = full_text.split(" ")
+        split_full_text = full_text.replace('\n', ' ').split(" ")
         split_full_text = [i for i in split_full_text if i]
         split_full_text_len = len(split_full_text)
         output_text = []

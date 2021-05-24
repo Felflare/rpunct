@@ -1,3 +1,4 @@
 langdetect==1.0.9
 pandas==1.2.4
 simpletransformers==0.61.4
+six==1.16.0

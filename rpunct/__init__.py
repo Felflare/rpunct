@@ -1,1 +1,1 @@
-from .rpunct import RestorePuncts
+from .punctuate import RestorePuncts
