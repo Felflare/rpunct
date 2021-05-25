@@ -15,7 +15,7 @@ with open("requirements.txt", "r") as fh:
 
 setup(
     name="rpunct",
-    version="1.0.1",
+    version="1.0.2",
     author="Daulet Nurmanbetov",
     author_email="daulet.nurmanbetov@gmail.com",
     description="An easy-to-use package to  restore punctuation of text.",
