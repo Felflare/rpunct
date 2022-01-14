@@ -38,8 +38,10 @@ class RestorePuncts:
         splits = self.split_on_toks(text, self.wrds_per_pred, self.overlap_wrds)
         # predict slices
         # full_preds_lst contains tuple of labels and logits
+        print(f'predicting {len(splits)} slices')
         full_preds_lst = [self.predict(i['text']) for i in splits]
         # extract predictions, and discard logits
+        print(f'combining predictions')
         preds_lst = [i[0][0] for i in full_preds_lst]
         # join text slices
         combined_preds = self.combine_results(text, preds_lst)
