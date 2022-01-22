@@ -7,15 +7,19 @@ __email__ = "daulet.nurmanbetov@gmail.com"
 import logging
 from langdetect import detect
 from simpletransformers.ner import NERModel
+from typing import Any, Dict
 
 
 class RestorePuncts:
-    def __init__(self, wrds_per_pred=250):
+    def __init__(self, wrds_per_pred=250, ner_args: Dict[str, Any]=None):
         self.wrds_per_pred = wrds_per_pred
         self.overlap_wrds = 30
         self.valid_labels = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
+
+        if ner_args is None:
+            ner_args = {}
         self.model = NERModel("bert", "felflare/bert-restore-punctuation", labels=self.valid_labels,
-                              args={"silent": True, "max_seq_length": 512})
+                              args={"silent": True, "max_seq_length": 512}, **ner_args)
 
     def punctuate(self, text: str, lang:str=''):
         """
