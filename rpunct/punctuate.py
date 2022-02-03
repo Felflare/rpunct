@@ -10,11 +10,11 @@ from simpletransformers.ner import NERModel
 
 
 class RestorePuncts:
-    def __init__(self, wrds_per_pred=250, use_cuda=False, silent=False):
+    def __init__(self, model='felflare/bert-restore-punctuation', wrds_per_pred=250, use_cuda=False, silent=False):
         self.wrds_per_pred = wrds_per_pred
         self.overlap_wrds = 30
         self.valid_labels = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
-        self.model = NERModel("bert", "felflare/bert-restore-punctuation", labels=self.valid_labels, use_cuda=use_cuda,
+        self.model = NERModel("bert", f"{model}", labels=self.valid_labels, use_cuda=use_cuda,
                               args={"silent": silent, "max_seq_length": 512})
 
     def punctuate(self, text: str, lang: str = ''):
