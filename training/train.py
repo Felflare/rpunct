@@ -6,19 +6,20 @@ __email__ = "daulet.nurmanbetov@gmail.com"
 
 import json
 import os
+import pandas as pd
 from simpletransformers.ner import NERModel
 
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
 TRAIN_DATASETS = ['yelp_train_1.txt', 'yelp_train_2.txt', 'yelp_train_3.txt', 'yelp_train_4.txt']
 PATH = './training/datasets/'
 
-# full training pipeline
+
 def e2e_train(use_cuda=True):
     # generate correctly formatted training data
     print("\nPreparing data")
-    prepare_data()
+    prepare_data(print_stats=True)
 
-    # use data to create a simpletransformer model and train it
+    # create a simpletransformer model and use data to train it
     print("\nBuilding & training model")
     steps, tr_details = train_model(use_cuda=use_cuda)
     print(f"Steps: {steps}; Train details: {tr_details}")
@@ -41,7 +42,6 @@ def train_model(use_cuda=True):
         use_cuda=use_cuda
     )
 
-
     # Train the model
     dataset_path = os.path.join(PATH, 'rpunct_train_set.txt')
     print(f"\tTraining model on dataset: {dataset_path}")
@@ -50,21 +50,39 @@ def train_model(use_cuda=True):
     return steps, tr_details
 
 
-def prepare_data():
+def prepare_data(print_stats=False):
     """
     Prepares data from Original text into Connnl formatted datasets ready for training
     In addition constraints label space to only labels we care about
     """
+    # load formatted data generated through `prep_data.py`
     token_data = load_datasets(TRAIN_DATASETS)
+
+    # remove any invalid labels
     clean_up_labels(token_data, VALID_LABELS)
 
+    # split train/test datasets, and convert each to a text file
     train_set = token_data[:int(len(token_data) * 0.90)]
     train_set_path = os.path.join(PATH, 'rpunct_train_set.txt')
     create_text_file(train_set, train_set_path)
 
-    eval_set = token_data[-int(len(token_data) * 0.10):]
-    eval_set_path = os.path.join(PATH, 'rpunct_test_set.txt')
-    create_text_file(eval_set, eval_set_path)
+    test_set = token_data[-int(len(token_data) * 0.10):]
+    test_set_path = os.path.join(PATH, 'rpunct_test_set.txt')
+    create_text_file(test_set, test_set_path)
+
+    # output statistics of each dataset
+    if print_stats:
+        train_stats = get_label_stats(train_set)
+        train_stats = pd.DataFrame.from_dict(train_stats, orient='index', columns=['count'])
+        test_stats = get_label_stats(test_set)
+        test_stats = pd.DataFrame.from_dict(test_stats, orient='index', columns=['count'])
+
+        print(f"\tTraining data statistics:")
+        print(train_stats)
+
+        print(f"\n\tTesting data statistics:")
+        print(test_stats)
+
 
 
 def load_datasets(dataset_paths):
@@ -93,7 +111,7 @@ def get_label_stats(dataset):
                 calcs[tok[2]] = 1
             else:
                 calcs[tok[2]] += 1
-    print(calcs)
+
     return calcs
 
 

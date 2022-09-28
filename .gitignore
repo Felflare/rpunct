@@ -2,3 +2,4 @@ venv
 training/datasets/*
 tests/sample_results.txt
 ~/tensorflow_datasets/**
+runs/**
