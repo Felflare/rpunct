@@ -5,37 +5,48 @@ __author__ = "Daulet N."
 __email__ = "daulet.nurmanbetov@gmail.com"
 
 import json
+import os
 from simpletransformers.ner import NERModel
 
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
 TRAIN_DATASETS = ['yelp_train_1.txt', 'yelp_train_2.txt', 'yelp_train_3.txt', 'yelp_train_4.txt']
+PATH = './training/datasets/'
 
 # full training pipeline
-def e2e_train():
+def e2e_train(use_cuda=True):
     # generate correctly formatted training data
-    print("preparing data")
+    print("\nPreparing data")
     prepare_data()
-    print("data prepared")
 
     # use data to create a simpletransformer model and train it
-    steps, tr_details = train_model()
+    print("\nBuilding & training model")
+    steps, tr_details = train_model(use_cuda=use_cuda)
     print(f"Steps: {steps}; Train details: {tr_details}")
 
 
-def train_model():
+def train_model(use_cuda=True):
     """
     Trains simpletransformers model
     """
     # Create a NERModel
-    model = NERModel("bert", "bert-base-uncased",
-                     args={"overwrite_output_dir": True,
-                           "num_train_epochs": 3,
-                           "max_seq_length": 512,
-                           "lazy_loading": True},
-                     labels=VALID_LABELS)
+    print("\tBuilding NER model")
+    model = NERModel(
+        "bert",
+        "bert-base-uncased",
+        args={"overwrite_output_dir": True,
+            "num_train_epochs": 3,
+            "max_seq_length": 512,
+            "lazy_loading": True},
+        labels=VALID_LABELS,
+        use_cuda=use_cuda
+    )
 
-    # # Train the model
-    steps, tr_details = model.train_model('rpunct_train_set.txt')
+
+    # Train the model
+    dataset_path = os.path.join(PATH, 'rpunct_train_set.txt')
+    print(f"\tTraining model on dataset: {dataset_path}")
+    steps, tr_details = model.train_model(dataset_path)
+
     return steps, tr_details
 
 
@@ -45,11 +56,15 @@ def prepare_data():
     In addition constraints label space to only labels we care about
     """
     token_data = load_datasets(TRAIN_DATASETS)
-    clean_up_labels(token_data, valid_labels)
-    eval_set = token_data[-int(len(token_data) * 0.10):]
+    clean_up_labels(token_data, VALID_LABELS)
+
     train_set = token_data[:int(len(token_data) * 0.90)]
-    create_text_file(train_set, 'rpunct_train_set.txt')
-    create_text_file(eval_set, 'rpunct_test_set.txt')
+    train_set_path = os.path.join(PATH, 'rpunct_train_set.txt')
+    create_text_file(train_set, train_set_path)
+
+    eval_set = token_data[-int(len(token_data) * 0.10):]
+    eval_set_path = os.path.join(PATH, 'rpunct_test_set.txt')
+    create_text_file(eval_set, eval_set_path)
 
 
 def load_datasets(dataset_paths):
@@ -58,8 +73,10 @@ def load_datasets(dataset_paths):
     """
     token_data = []
     for d_set in dataset_paths:
-        with open(d_set, 'r') as fp:
+        dataset_path = os.path.join(PATH, d_set)
+        with open(dataset_path, 'r') as fp:
             data_slice = json.load(fp)
+
         token_data.extend(data_slice)
         del data_slice
     return token_data
@@ -111,4 +128,4 @@ def create_text_file(dataset, name):
 
 if __name__ == "__main__":
     print("Training the model.")
-    e2e_train()
+    e2e_train(use_cuda=False)
