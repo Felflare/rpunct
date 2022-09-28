@@ -8,10 +8,16 @@ import json
 from simpletransformers.ner import NERModel
 
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
+TRAIN_DATASETS = ['yelp_train_1.txt', 'yelp_train_2.txt', 'yelp_train_3.txt', 'yelp_train_4.txt']
 
-
+# full training pipeline
 def e2e_train():
+    # generate correctly formatted training data
+    print("preparing data")
     prepare_data()
+    print("data prepared")
+
+    # use data to create a simpletransformer model and train it
     steps, tr_details = train_model()
     print(f"Steps: {steps}; Train details: {tr_details}")
 
@@ -38,7 +44,7 @@ def prepare_data():
     Prepares data from Original text into Connnl formatted datasets ready for training
     In addition constraints label space to only labels we care about
     """
-    token_data = load_datasets(['telp_train_1.txt', 'telp_train_2.txt', 'telp_train_3.txt', 'telp_train_4.txt'])
+    token_data = load_datasets(TRAIN_DATASETS)
     clean_up_labels(token_data, valid_labels)
     eval_set = token_data[-int(len(token_data) * 0.10):]
     train_set = token_data[:int(len(token_data) * 0.90)]
@@ -51,7 +57,7 @@ def load_datasets(dataset_paths):
     Given a list of data paths returns a single data object containing all data slices
     """
     token_data = []
-    for d_set in [dataset_paths]:
+    for d_set in dataset_paths:
         with open(d_set, 'r') as fp:
             data_slice = json.load(fp)
         token_data.extend(data_slice)
