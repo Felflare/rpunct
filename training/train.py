@@ -25,31 +25,6 @@ def e2e_train(use_cuda=True):
     print(f"Steps: {steps}; Train details: {tr_details}")
 
 
-def train_model(use_cuda=True):
-    """
-    Trains simpletransformers model
-    """
-    # Create a NERModel
-    print("\tBuilding NER model")
-    model = NERModel(
-        "bert",
-        "bert-base-uncased",
-        args={"overwrite_output_dir": True,
-            "num_train_epochs": 3,
-            "max_seq_length": 512,
-            "lazy_loading": True},
-        labels=VALID_LABELS,
-        use_cuda=use_cuda
-    )
-
-    # Train the model
-    dataset_path = os.path.join(PATH, 'rpunct_train_set.txt')
-    print(f"\tTraining model on dataset: {dataset_path}")
-    steps, tr_details = model.train_model(dataset_path)
-
-    return steps, tr_details
-
-
 def prepare_data(print_stats=False):
     """
     Prepares data from Original text into Connnl formatted datasets ready for training
@@ -65,24 +40,26 @@ def prepare_data(print_stats=False):
     train_set = token_data[:int(len(token_data) * 0.90)]
     train_set_path = os.path.join(PATH, 'rpunct_train_set.txt')
     create_text_file(train_set, train_set_path)
+    print(f"\tTraining dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
 
-    test_set = token_data[-int(len(token_data) * 0.10):]
-    test_set_path = os.path.join(PATH, 'rpunct_test_set.txt')
-    create_text_file(test_set, test_set_path)
+    val_set = token_data[-int(len(token_data) * 0.10):]
+    val_set_path = os.path.join(PATH, 'rpunct_val_set.txt')
+    create_text_file(val_set, val_set_path)
+    print(f"\tValidation dataset shape: ({len(val_set)}, {len(val_set[0])}, {len(val_set[0][0])})")
+
 
     # output statistics of each dataset
     if print_stats:
         train_stats = get_label_stats(train_set)
         train_stats = pd.DataFrame.from_dict(train_stats, orient='index', columns=['count'])
-        test_stats = get_label_stats(test_set)
-        test_stats = pd.DataFrame.from_dict(test_stats, orient='index', columns=['count'])
+        val_stats = get_label_stats(val_set)
+        val_stats = pd.DataFrame.from_dict(val_stats, orient='index', columns=['count'])
 
         print(f"\tTraining data statistics:")
         print(train_stats)
 
-        print(f"\n\tTesting data statistics:")
-        print(test_stats)
-
+        print(f"\n\tValidation data statistics:")
+        print(val_stats)
 
 
 def load_datasets(dataset_paths):
@@ -97,22 +74,8 @@ def load_datasets(dataset_paths):
 
         token_data.extend(data_slice)
         del data_slice
+
     return token_data
-
-
-def get_label_stats(dataset):
-    """
-    Generates frequency of different labels in the dataset.
-    """
-    calcs = {}
-    for i in dataset:
-        for tok in i:
-            if tok[2] not in calcs.keys():
-                calcs[tok[2]] = 1
-            else:
-                calcs[tok[2]] += 1
-
-    return calcs
 
 
 def clean_up_labels(dataset, valid_labels):
@@ -142,6 +105,46 @@ def create_text_file(dataset, name):
                 line = tok[1] + " " + tok[2] + '\n'
                 fp.write(line)
             fp.write('\n')
+
+
+def get_label_stats(dataset):
+    """
+    Generates frequency of different labels in the dataset.
+    """
+    calcs = {}
+    for i in dataset:
+        for tok in i:
+            if tok[2] not in calcs.keys():
+                calcs[tok[2]] = 1
+            else:
+                calcs[tok[2]] += 1
+
+    return calcs
+
+
+def train_model(use_cuda=True):
+    """
+    Trains simpletransformers model
+    """
+    # Create a NERModel
+    print("\tBuilding NER model")
+    model = NERModel(
+        "bert",
+        "bert-base-uncased",
+        args={"overwrite_output_dir": True,
+            "num_train_epochs": 3,
+            "max_seq_length": 512,
+            "lazy_loading": True},
+        labels=VALID_LABELS,
+        use_cuda=use_cuda
+    )
+
+    # Train the model
+    dataset_path = os.path.join(PATH, 'rpunct_train_set.txt')
+    print(f"\tTraining model on dataset: {dataset_path}")
+    steps, tr_details = model.train_model(dataset_path)
+
+    return steps, tr_details
 
 
 if __name__ == "__main__":

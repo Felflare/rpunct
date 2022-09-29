@@ -179,7 +179,7 @@ def create_tokenized_obs(input_list, num_toks=500, offset=250):
 
     # cycle through each list of dicts (global index, {word, label}) to break into chunks with a start index `start` and end index `end`
     for ix, i in enumerate(input_list):
-        # skip over words if they have been added to a chunk already (progress to end of that chunk)
+        # skip over the first 250 words that have been added to a chunk already (progress to end of offset)
         if ix == loop_end:
             start = -1
 
@@ -188,7 +188,7 @@ def create_tokenized_obs(input_list, num_toks=500, offset=250):
             start = ix  # start chunk from this uppercase word (i.e. start of a sentence)
             end = ix + num_toks  # the end of that chunk is 500 words later
             appends.append((start, end))  # enumerate the start and end of this chunk
-            loop_end = start + offset  # identify end of chunk s.t. loop can progress to the end of this chunk and start searching again
+            loop_end = start + offset  # identify end of offset s.t. loop can progress to the end of this offset and start searching again
 
     # return list of tuples enumerating the start and end index of each chunk of words
     return appends
