@@ -14,10 +14,10 @@ TRAIN_DATASETS = ['yelp_train_1.txt', 'yelp_train_2.txt', 'yelp_train_3.txt', 'y
 PATH = './training/datasets/'
 
 
-def e2e_train(use_cuda=True):
+def e2e_train(use_cuda=True, print_stats=False):
     # generate correctly formatted training data
     print("\nPreparing data")
-    prepare_data(print_stats=True)
+    prepare_data(print_stats=print_stats)
 
     # create a simpletransformer model and use data to train it
     print("\nBuilding & training model")

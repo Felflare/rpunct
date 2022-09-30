@@ -16,8 +16,6 @@ PATH = './training/datasets/'
 
 # full pipeline for downloading and formatting training data
 def create_train_datasets():
-    output_file_names = []
-
     # save training/testing datasets from tensorflow to local csv files
     print("\nDownloading csv files")
     download_df()
@@ -37,10 +35,7 @@ def create_train_datasets():
         create_rpunct_dataset(data_in, data_out)
 
         print("\nGenerating training samples")
-        output_files = create_training_samples(f"{name}_data.json", f"{df_name}_{split_nm}")
-        output_file_names.extend(output_files)
-
-    return output_file_names
+        create_training_samples(f"{name}_data.json", f"{df_name}_{split_nm}")
 
 
 def download_df():
@@ -163,8 +158,6 @@ def create_training_samples(json_loc_file, file_out_nm='train_data', num_splits=
         del full_data
         del observations
 
-    return output_files
-
 
 def create_tokenized_obs(input_list, num_toks=500, offset=250):
     """
@@ -195,5 +188,5 @@ def create_tokenized_obs(input_list, num_toks=500, offset=250):
 
 
 if __name__ == "__main__":
-    output_file_names = create_train_datasets()
-    print(f"\nCreated following files: {output_file_names}")
+    # construct training and testing data files from yahoo reviews
+    create_train_datasets()
