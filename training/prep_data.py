@@ -34,7 +34,7 @@ def create_train_datasets():
         data_out = os.path.join(PATH, f"{name}_data.json")
         create_rpunct_dataset(data_in, data_out)
 
-        print("\nGenerating training samples")
+        print("\nGenerating data samples")
         create_training_samples(f"{name}_data.json", f"{df_name}_{split_nm}")
 
 

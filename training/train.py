@@ -47,7 +47,6 @@ def prepare_data(print_stats=False):
     create_text_file(val_set, val_set_path)
     print(f"\tValidation dataset shape: ({len(val_set)}, {len(val_set[0])}, {len(val_set[0][0])})")
 
-
     # output statistics of each dataset
     if print_stats:
         train_stats = get_label_stats(train_set)
