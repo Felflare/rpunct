@@ -17,7 +17,7 @@ PATH = './training/datasets/'
 def e2e_train(use_cuda=True, print_stats=False):
     # generate correctly formatted training data
     print("\nPreparing data")
-    prepare_data(print_stats=print_stats)
+    prepare_data(TRAIN_DATASETS, print_stats=print_stats)
 
     # create a simpletransformer model and use data to train it
     print("\nBuilding & training model")
@@ -25,27 +25,36 @@ def e2e_train(use_cuda=True, print_stats=False):
     print(f"Steps: {steps}; Train details: {tr_details}")
 
 
-def prepare_data(print_stats=False):
+def prepare_data(datasets, output_txt='rpunct_train_set.txt', validation=True, print_stats=False):
     """
     Prepares data from Original text into Connnl formatted datasets ready for training
     In addition constraints label space to only labels we care about
     """
     # load formatted data generated through `prep_data.py`
-    token_data = load_datasets(TRAIN_DATASETS)
+    token_data = load_datasets(datasets)
 
     # remove any invalid labels
     clean_up_labels(token_data, VALID_LABELS)
 
     # split train/test datasets, and convert each to a text file
-    train_set = token_data[:int(len(token_data) * 0.90)]
-    train_set_path = os.path.join(PATH, 'rpunct_train_set.txt')
-    create_text_file(train_set, train_set_path)
-    print(f"\tTraining dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
+    if validation:
+        # training set
+        train_set = token_data[:int(len(token_data) * 0.90)]
+        train_set_path = os.path.join(PATH, output_txt)
+        create_text_file(train_set, train_set_path)
+        print(f"\tTraining dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
 
-    val_set = token_data[-int(len(token_data) * 0.10):]
-    val_set_path = os.path.join(PATH, 'rpunct_val_set.txt')
-    create_text_file(val_set, val_set_path)
-    print(f"\tValidation dataset shape: ({len(val_set)}, {len(val_set[0])}, {len(val_set[0][0])})")
+        # validation set
+        val_set = token_data[-int(len(token_data) * 0.10):]
+        val_set_path = os.path.join(PATH, 'rpunct_val_set.txt')
+        create_text_file(val_set, val_set_path)
+        print(f"\tValidation dataset shape: ({len(val_set)}, {len(val_set[0])}, {len(val_set[0][0])})")
+    else:
+        # if not having a validation set, just create one dataset
+        dataset = token_data.copy()
+        dataset_path = os.path.join(PATH, output_txt)
+        create_text_file(dataset, dataset_path)
+        print(f"\tDataset shape: ({len(dataset)}, {len(dataset[0])}, {len(dataset[0][0])})")
 
     # output statistics of each dataset
     if print_stats:
@@ -121,7 +130,7 @@ def get_label_stats(dataset):
     return calcs
 
 
-def train_model(use_cuda=True):
+def train_model(dataset_txt='rpunct_train_set.txt', use_cuda=True):
     """
     Trains simpletransformers model
     """
@@ -139,7 +148,7 @@ def train_model(use_cuda=True):
     )
 
     # Train the model
-    dataset_path = os.path.join(PATH, 'rpunct_train_set.txt')
+    dataset_path = os.path.join(PATH, dataset_txt)
     print(f"\tTraining model on dataset: {dataset_path}")
     steps, tr_details = model.train_model(dataset_path)
 
