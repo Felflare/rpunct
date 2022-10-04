@@ -14,14 +14,15 @@ TRAIN_DATASETS = ['yelp_train_1.txt', 'yelp_train_2.txt', 'yelp_train_3.txt', 'y
 PATH = './training/datasets/'
 
 
-def e2e_train(use_cuda=True, print_stats=False):
+def e2e_train(use_cuda=True, validation=True, print_stats=False):
     # generate correctly formatted training data
     print("\nPreparing data")
-    prepare_data(TRAIN_DATASETS, print_stats=print_stats)
+    prepare_data(TRAIN_DATASETS, validation=validation, print_stats=print_stats)
 
     # create a simpletransformer model and use data to train it
     print("\nBuilding & training model")
-    steps, tr_details = train_model(use_cuda=use_cuda)
+    steps, tr_details = train_model(use_cuda=use_cuda, validation=validation)
+
     print(f"Steps: {steps}; Train details: {tr_details}")
 
 
@@ -130,31 +131,37 @@ def get_label_stats(dataset):
     return calcs
 
 
-def train_model(dataset_txt='rpunct_train_set.txt', use_cuda=True):
+def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_set.txt', use_cuda=True, validation=True):
     """
     Trains simpletransformers model
     """
     # Create a NERModel
-    print("\tBuilding NER model")
+    print("\tBuilding NER model", end='\n\n')
     model = NERModel(
         "bert",
         "bert-base-uncased",
-        args={"overwrite_output_dir": True,
+        labels=VALID_LABELS,
+        use_cuda=use_cuda,
+        args={
+            "evaluate_during_training": validation,
+            "overwrite_output_dir": True,
             "num_train_epochs": 3,
             "max_seq_length": 512,
-            "lazy_loading": True},
-        labels=VALID_LABELS,
-        use_cuda=use_cuda
+            "lazy_loading": True
+        }
     )
 
     # Train the model
-    dataset_path = os.path.join(PATH, dataset_txt)
-    print(f"\tTraining model on dataset: {dataset_path}")
-    steps, tr_details = model.train_model(dataset_path)
+    train_data_path = os.path.join(PATH, train_data_txt)
+    val_data_path = os.path.join(PATH, val_data_txt)
+    print(f"\n\tTraining model on dataset: {train_data_path}")
+    print(f"\tValidate model during training: {validation}", end='\n\n')
+
+    steps, tr_details = model.train_model(train_data_path, eval_data=val_data_path)
 
     return steps, tr_details
 
 
 if __name__ == "__main__":
-    print("Training the model.")
+    print("Training the model")
     e2e_train(use_cuda=False)
