@@ -163,5 +163,4 @@ def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_
 
 
 if __name__ == "__main__":
-    print("Training the model")
-    e2e_train(use_cuda=False)
+    e2e_train()
