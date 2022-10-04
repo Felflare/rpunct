@@ -18,9 +18,9 @@ sudo apt-get install -y cuda-11-6
 
 
 # retrieving rpunct code
-git clone git@github.com:tom-bbc/rpunct-test.git
-
-cd rpunct-test
+git clone git@github.com:bbc/rpunct.git
+cd rpunct
+git checkout tp-fixing-training
 mkdir training/datasets
 
 
