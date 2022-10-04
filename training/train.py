@@ -16,14 +16,15 @@ PATH = './training/datasets/'
 
 def e2e_train(use_cuda=True, validation=True, print_stats=False):
     # generate correctly formatted training data
-    print("\nPreparing data")
+    print("\nPreparing training data")
     prepare_data(TRAIN_DATASETS, validation=validation, print_stats=print_stats)
 
     # create a simpletransformer model and use data to train it
     print("\nBuilding & training model")
-    steps, tr_details = train_model(use_cuda=use_cuda, validation=validation)
-
+    model, steps, tr_details = train_model(use_cuda=use_cuda, validation=validation)
     print(f"Steps: {steps}; Train details: {tr_details}")
+
+    return model
 
 
 def prepare_data(datasets, output_txt='rpunct_train_set.txt', validation=True, print_stats=False):
@@ -159,7 +160,7 @@ def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_
 
     steps, tr_details = model.train_model(train_data_path, eval_data=val_data_path)
 
-    return steps, tr_details
+    return model, steps, tr_details
 
 
 if __name__ == "__main__":
