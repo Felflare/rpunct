@@ -6,11 +6,11 @@ __email__ = "daulet.nurmanbetov@gmail.com"
 
 import json
 import os
-from turtle import title
 import pandas as pd
 from simpletransformers.ner import NERModel
 import matplotlib.pyplot as plt
 import seaborn as sns
+
 sns.set_theme(style="darkgrid")
 sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 
@@ -63,6 +63,22 @@ def prepare_data(datasets, output_txt='rpunct_train_set.txt', validation=True, p
         val_set_path = os.path.join(PATH, 'rpunct_val_set.txt')
         create_text_file(val_set, val_set_path)
         print(f"\tValidation dataset shape: ({len(val_set)}, {len(val_set[0])}, {len(val_set[0][0])})")
+
+        # output statistics of each dataset
+        if print_stats:
+            train_stats = get_label_stats(train_set)
+            train_stats = pd.DataFrame.from_dict(train_stats, orient='index', columns=['count'])
+            val_stats = get_label_stats(val_set)
+            val_stats = pd.DataFrame.from_dict(val_stats, orient='index', columns=['count'])
+
+            print(f"\tTraining data statistics:")
+            print(train_stats)
+
+            print(f"\n\tValidation data statistics:")
+            print(val_stats)
+
+        return train_set
+
     else:
         # if not having a validation set, just create one dataset
         dataset = token_data.copy()
@@ -70,18 +86,16 @@ def prepare_data(datasets, output_txt='rpunct_train_set.txt', validation=True, p
         create_text_file(dataset, dataset_path)
         print(f"\tDataset shape: ({len(dataset)}, {len(dataset[0])}, {len(dataset[0][0])})")
 
-    # output statistics of each dataset
-    if print_stats:
-        train_stats = get_label_stats(train_set)
-        train_stats = pd.DataFrame.from_dict(train_stats, orient='index', columns=['count'])
-        val_stats = get_label_stats(val_set)
-        val_stats = pd.DataFrame.from_dict(val_stats, orient='index', columns=['count'])
+        # output statistics of each dataset
+        if print_stats:
+            stats = get_label_stats(dataset)
+            stats = pd.DataFrame.from_dict(stats, orient='index', columns=['count'])
 
-        print(f"\tTraining data statistics:")
-        print(train_stats)
+            print(f"\tTraining data statistics:")
+            print(stats)
 
-        print(f"\n\tValidation data statistics:")
-        print(val_stats)
+        return dataset
+
 
 
 def load_datasets(dataset_paths):

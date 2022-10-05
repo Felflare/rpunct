@@ -2,9 +2,16 @@
 # 💾⚙️🔮
 
 import os
+import sys
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 from simpletransformers.ner import NERModel
 from train import prepare_data
+
+sns.set_theme(style="darkgrid")
+sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 
 
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
@@ -20,7 +27,7 @@ def e2e_test(model_path, results_txt='rpunct_test_results.txt', use_cuda=True):
     # format testing data into txt
     print("\nPreparing testing data")
     test_data_txt = 'rpunct_test_set.txt'
-    prepare_data(TEST_DATASETS, output_txt=test_data_txt, validation=False)
+    test_data_lst = prepare_data(TEST_DATASETS, output_txt=test_data_txt, validation=False)
 
     # load fully trained model
     model = NERModel(
@@ -33,8 +40,9 @@ def e2e_test(model_path, results_txt='rpunct_test_results.txt', use_cuda=True):
     print(f"\nModel loaded from: {model_path}")
 
     # test model after its been fully trained
-    test_results, _, bad_predictions = test_model(model, test_data_txt)
-    incorrect_preds_stats(bad_predictions)
+    metrics, outputs, predictions = test_model(model, test_data_txt)
+
+    compare_models(metrics, metrics)
 
 
 def test_model(model, in_txt):
@@ -55,20 +63,33 @@ def test_model(model, in_txt):
     return result, model_outputs, wrong_preds
 
 
-def incorrect_preds_stats(failures):
-    failures = np.concatenate(failures)
-    stats = {}
-    print("\nNumber of incorrect predictions per label:")
+def compare_models(model1, model2=None):
+    df = pd.DataFrame({
+       'metrics': model1.keys(),
+       'results': model1.values(),
+       'model': 'model1'
+    })
 
-    for label in VALID_LABELS:
-        count = np.count_nonzero(failures == label)
-        stats[label] = count
-        print(f"\t{label} : {count}")
+    if model2 is not None:
+        df2 = pd.DataFrame({
+            'metrics': model2.keys(),
+            'results': model2.values(),
+            'model': 'model2'
+        })
 
-    return stats
+        df = pd.concat([df, df2])
+
+    fig, ax = plt.subplots(1, 1)
+    sns.barplot(ax=ax, x='metrics', y='results', hue='model', data=df)
+    fig.savefig('bar_chart.png')
 
 
 if __name__ == "__main__":
-    # model = 'felflare/bert-restore-punctuation'
-    model = 'outputs/best_model'
-    e2e_test(model, 'orig_rpunct_test_results.txt', use_cuda=False)
+    # take input of model's optimised parameterisation from command line (if none use hugging face model)
+    inputs = sys.argv[1:]
+    if len(inputs) == 0:
+        model = 'felflare/bert-restore-punctuation'
+    else:
+        model = inputs[0]  # likely 'outputs/best_model'
+
+    e2e_test(model, 'orig_rpunct_test_results.txt', use_cuda=True)
