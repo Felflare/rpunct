@@ -6,23 +6,35 @@ __email__ = "daulet.nurmanbetov@gmail.com"
 
 import json
 import os
+from turtle import title
 import pandas as pd
 from simpletransformers.ner import NERModel
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set_theme(style="darkgrid")
+sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
 TRAIN_DATASETS = ['yelp_train_1.txt', 'yelp_train_2.txt', 'yelp_train_3.txt', 'yelp_train_4.txt']
 PATH = './training/datasets/'
 
 
-def e2e_train(use_cuda=True, validation=True, print_stats=False):
+def e2e_train(use_cuda=True, validation=True, dataset_stats=False, training_plot=False):
+    """
+    Training pipeline to format training dataset, build model, and train it.
+    """
     # generate correctly formatted training data
     print("\nPreparing training data")
-    prepare_data(TRAIN_DATASETS, validation=validation, print_stats=print_stats)
+    prepare_data(TRAIN_DATASETS, validation=validation, print_stats=dataset_stats)
 
     # create a simpletransformer model and use data to train it
     print("\nBuilding & training model")
     model, steps, tr_details = train_model(use_cuda=use_cuda, validation=validation)
     print(f"Steps: {steps}; Train details: {tr_details}")
+
+    # plot the progression/convergence over training/validation
+    if validation and training_plot:
+        plot_training(tr_details)
 
     return model
 
@@ -134,7 +146,12 @@ def get_label_stats(dataset):
 
 def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_set.txt', use_cuda=True, validation=True):
     """
-    Trains simpletransformers model
+    Trains simpletransformers model.
+    Args:
+        - train_data_txt (str): File name where training dataset is stored (txt in Connl NER format).
+        - val_data_txt (str): File name where validation dataset is stored (txt in Connl NER format).
+        - use_cuda (bool): Toggle to run training on GPU (True) or CPU (False).
+        - validation (bool): Toggle to exploit validation set during training (validates performance every 5000 steps).
     """
     # Create a NERModel
     print("\tBuilding NER model", end='\n\n')
@@ -145,6 +162,7 @@ def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_
         use_cuda=use_cuda,
         args={
             "evaluate_during_training": validation,
+            "evaluate_during_training_steps": 5000,
             "overwrite_output_dir": True,
             "num_train_epochs": 3,
             "max_seq_length": 512,
@@ -161,6 +179,28 @@ def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_
     steps, tr_details = model.train_model(train_data_path, eval_data=val_data_path)
 
     return model, steps, tr_details
+
+
+def plot_training(training, out_path='training/training_loss.png'):
+    """
+    Plots the progression of the loss function (validation metrics) computed at each 5000 steps during training.
+    Args:
+        - training (dict): Global step count, and results of metric evalidations.
+        - out_path (str): The output file to which the generated training plot is saved.
+    """
+    palette = sns.color_palette("Set2")
+    fig, ax = plt.subplots(1, 1)
+    keys = list(training.keys())
+    keys.remove('global_step')
+    count = 0
+
+    for key in keys:
+        sns.lineplot(ax=ax, x='global_step', y=key, data=training, color=palette[count % len(palette)])
+        count += 1
+
+    ax.set(ylabel='Loss', xlabel='Training step', title="Progression of Model Training")
+    ax.legend(labels=keys, title="Legend")
+    fig.savefig(out_path)
 
 
 if __name__ == "__main__":
