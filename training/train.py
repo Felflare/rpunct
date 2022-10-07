@@ -52,50 +52,40 @@ def prepare_data(datasets, output_txt='rpunct_train_set.txt', validation=True, p
 
     # split train/test datasets, and convert each to a text file
     if validation:
-        # training set
-        train_set = token_data[:int(len(token_data) * 0.90)]
-        train_set_path = os.path.join(PATH, output_txt)
-        create_text_file(train_set, train_set_path)
-        print(f"\tTraining dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
-
         # validation set
         val_set = token_data[-int(len(token_data) * 0.10):]
         val_set_path = os.path.join(PATH, 'rpunct_val_set.txt')
+
         create_text_file(val_set, val_set_path)
         print(f"\tValidation dataset shape: ({len(val_set)}, {len(val_set[0])}, {len(val_set[0][0])})")
 
-        # output statistics of each dataset
         if print_stats:
-            train_stats = get_label_stats(train_set)
-            train_stats = pd.DataFrame.from_dict(train_stats, orient='index', columns=['count'])
             val_stats = get_label_stats(val_set)
             val_stats = pd.DataFrame.from_dict(val_stats, orient='index', columns=['count'])
 
-            print(f"\tTraining data statistics:")
-            print(train_stats)
-
-            print(f"\n\tValidation data statistics:")
-            print(val_stats)
-
-        return train_set
-
+        # training set
+        train_set = token_data[:int(len(token_data) * 0.90)].copy()
     else:
-        # if not having a validation set, just create one dataset
-        dataset = token_data.copy()
-        dataset_path = os.path.join(PATH, output_txt)
-        create_text_file(dataset, dataset_path)
-        print(f"\tDataset shape: ({len(dataset)}, {len(dataset[0])}, {len(dataset[0][0])})")
+        train_set = token_data.copy()
+        val_stats = "No validation set"
+        
+    train_set_path = os.path.join(PATH, output_txt)
+    create_text_file(train_set, train_set_path)
+    print(f"\tTraining dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
 
-        # output statistics of each dataset
-        if print_stats:
-            stats = get_label_stats(dataset)
-            stats = pd.DataFrame.from_dict(stats, orient='index', columns=['count'])
+        
+    # output statistics of each dataset
+    if print_stats:
+        train_stats = get_label_stats(train_set)
+        train_stats = pd.DataFrame.from_dict(train_stats, orient='index', columns=['count'])
 
-            print(f"\tTraining data statistics:")
-            print(stats)
+        print(f"\tTraining data statistics:")
+        print(train_stats)
 
-        return dataset
+        print(f"\n\tValidation data statistics:")
+        print(val_stats)
 
+    return train_set
 
 
 def load_datasets(dataset_paths):
@@ -147,6 +137,9 @@ def get_label_stats(dataset):
     """
     Generates frequency of different labels in the dataset.
     """
+    if dataset == None:
+        return "None"
+
     calcs = {}
     for i in dataset:
         for tok in i:
