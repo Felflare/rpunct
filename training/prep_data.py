@@ -118,7 +118,6 @@ def create_training_samples(json_loc_file, file_out_nm='train_data', num_splits=
     """
     random.seed(1337)
     _round = 0
-    output_files = []
 
     # segment data into `num_splits` chunks
     while _round < num_splits:
@@ -148,7 +147,6 @@ def create_training_samples(json_loc_file, file_out_nm='train_data', num_splits=
         random.shuffle(observations)
 
         out = f'{file_out_nm}_{_round}.txt'
-        output_files.append(out)
         print(f"\tOutput data to file: {out}")
 
         out_path = os.path.join(PATH, out)
