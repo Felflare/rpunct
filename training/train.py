@@ -68,12 +68,11 @@ def prepare_data(datasets, output_txt='rpunct_train_set.txt', validation=True, p
     else:
         train_set = token_data.copy()
         val_stats = "No validation set"
-        
+
     train_set_path = os.path.join(PATH, output_txt)
     create_text_file(train_set, train_set_path)
     print(f"\tTraining dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
 
-        
     # output statistics of each dataset
     if print_stats:
         train_stats = get_label_stats(train_set)

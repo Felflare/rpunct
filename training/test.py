@@ -13,14 +13,13 @@ from train import prepare_data
 sns.set_theme(style="darkgrid")
 sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 
-
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
 TEST_DATASETS = ['yelp_test_1.txt', 'yelp_test_2.txt', 'yelp_test_3.txt', 'yelp_test_4.txt']
 DATA_PATH = './training/datasets/'
 RESULTS_PATH = './tests/'
 
 
-def e2e_test(model_path, results_txt='rpunct_test_results.txt', use_cuda=True):
+def e2e_test(models, use_cuda=True):
     """
     Testing model performance after full training process has been completed.
     """
@@ -28,21 +27,24 @@ def e2e_test(model_path, results_txt='rpunct_test_results.txt', use_cuda=True):
     print("\nPreparing testing data")
     test_data_txt = 'rpunct_test_set.txt'
     test_data_lst = prepare_data(TEST_DATASETS, output_txt=test_data_txt, validation=False)
+    all_metrics = []
 
-    # load fully trained model
-    model = NERModel(
-        "bert",
-        model_path,
-        labels=VALID_LABELS,
-        use_cuda=use_cuda,
-        args={"max_seq_length": 512}
-    )
-    print(f"\nModel loaded from: {model_path}")
+    for model_path in models:
+        # load fully trained model
+        model = NERModel(
+            "bert",
+            model_path,
+            labels=VALID_LABELS,
+            use_cuda=use_cuda,
+            args={"max_seq_length": 512}
+        )
+        print(f"\nModel loaded from: {model_path}")
 
-    # test model after its been fully trained
-    metrics, outputs, predictions = test_model(model, test_data_txt)
+        # test model after its been fully trained
+        metrics, outputs, predictions = test_model(model, test_data_txt)
+        all_metrics.append(metrics)
 
-    compare_models(metrics, metrics)
+    compare_models(all_metrics)
 
 
 def test_model(model, in_txt):
@@ -63,33 +65,35 @@ def test_model(model, in_txt):
     return result, model_outputs, wrong_preds
 
 
-def compare_models(model1, model2=None):
-    df = pd.DataFrame({
-       'metrics': model1.keys(),
-       'results': model1.values(),
-       'model': 'model1'
-    })
+def compare_models(models, out_png='model_performance.png'):
+    model = models[0]
 
-    if model2 is not None:
+    df = pd.DataFrame(columns = ['Metrics', 'Results', 'Model'])
+
+    count = 1
+    for model in models:
         df2 = pd.DataFrame({
-            'metrics': model2.keys(),
-            'results': model2.values(),
-            'model': 'model2'
+            'Metrics': [key.replace('_', ' ').capitalize() for key in model.keys()],
+            'Results': model.values(),
+            'Model': f"Model {count}"
         })
 
         df = pd.concat([df, df2])
+        count += 1
 
     fig, ax = plt.subplots(1, 1)
-    sns.barplot(ax=ax, x='metrics', y='results', hue='model', data=df)
-    fig.savefig('bar_chart.png')
+    sns.barplot(ax=ax, x='Metrics', y='Results', hue='Model', data=df)
+    ax.set(title="Test Performance of Optimised Models")
+    fig.savefig(out_png)
+
+    print(f"\nPerformance comparison saved to: {out_png}")
 
 
 if __name__ == "__main__":
     # take input of model's optimised parameterisation from command line (if none use hugging face model)
-    inputs = sys.argv[1:]
-    if len(inputs) == 0:
+    if len(sys.argv) == 0:
         model = 'felflare/bert-restore-punctuation'
     else:
-        model = inputs[0]  # likely 'outputs/best_model'
+        model = sys.argv[1:]  # likely 'outputs/best_model'
 
-    e2e_test(model, 'orig_rpunct_test_results.txt', use_cuda=True)
+    e2e_test(model, use_cuda=True)
