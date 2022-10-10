@@ -66,8 +66,7 @@ def test_model(model, in_txt):
 
 
 def compare_models(models, out_png='model_performance.png'):
-    model = models[0]
-
+    plot_path = os.path.join(RESULTS_PATH, out_png)
     df = pd.DataFrame(columns = ['Metrics', 'Results', 'Model'])
 
     count = 1
@@ -84,9 +83,9 @@ def compare_models(models, out_png='model_performance.png'):
     fig, ax = plt.subplots(1, 1)
     sns.barplot(ax=ax, x='Metrics', y='Results', hue='Model', data=df)
     ax.set(title="Test Performance of Optimised Models")
-    fig.savefig(out_png)
 
-    print(f"\nPerformance comparison saved to: {out_png}")
+    fig.savefig(plot_path)
+    print(f"\nPerformance comparison saved to: {plot_path}")
 
 
 if __name__ == "__main__":
