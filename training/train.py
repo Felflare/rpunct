@@ -7,6 +7,7 @@ __email__ = "daulet.nurmanbetov@gmail.com"
 import os
 import sys
 import json
+import math
 import pandas as pd
 from simpletransformers.ner import NERModel
 import matplotlib.pyplot as plt
@@ -17,7 +18,7 @@ sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
 PATH = './training/datasets/'
-EPOCHS = 1
+EPOCHS = 3
 
 
 def e2e_train(use_cuda=True, validation=False, dataset_stats=False, training_plot=False):
@@ -53,8 +54,11 @@ def prepare_data(datasets, output_txt='rpunct_train_set.txt', validation=True, p
 
     # split train/test datasets, and convert each to a text file
     if validation:
-        # validation set
-        val_set = token_data[-int(len(token_data) * 0.10):]
+        # training & validation sets
+        split = math.ceil(0.9 * len(token_data))
+        train_set = token_data[:split].copy()
+
+        val_set = token_data[split:].copy()
         val_set_path = os.path.join(PATH, 'rpunct_val_set.txt')
 
         create_text_file(val_set, val_set_path)
@@ -63,9 +67,6 @@ def prepare_data(datasets, output_txt='rpunct_train_set.txt', validation=True, p
         if print_stats:
             val_stats = get_label_stats(val_set)
             val_stats = pd.DataFrame.from_dict(val_stats, orient='index', columns=['count'])
-
-        # training set
-        train_set = token_data[:int(len(token_data) * 0.90)].copy()
     else:
         train_set = token_data.copy()
         val_stats = "No validation set"
@@ -217,12 +218,12 @@ if __name__ == "__main__":
         pipeline = 'reviews'
 
     if pipeline == 'news':
-        print(f"Training model on data from source: BBC News")
+        print(f"\nTraining model on data from source: BBC News")
         TRAIN_DATASETS = ['news_train_1.txt', 'news_train_2.txt', 'news_train_3.txt', 'news_train_4.txt']
     elif pipeline == 'reviews':
-        print(f"Training model on data from source: Yelp reviews")
+        print(f"\nTraining model on data from source: Yelp reviews")
         TRAIN_DATASETS = ['yelp_train_1.txt', 'yelp_train_2.txt', 'yelp_train_3.txt', 'yelp_train_4.txt']
     else:
-        raise TypeError('Unknown data source')
+        raise ValueError('Unknown data source')
 
-    e2e_train(use_cuda=False)
+    e2e_train()

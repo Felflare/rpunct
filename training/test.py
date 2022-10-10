@@ -14,7 +14,6 @@ sns.set_theme(style="darkgrid")
 sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
-TEST_DATASETS = ['yelp_test_1.txt', 'yelp_test_2.txt', 'yelp_test_3.txt', 'yelp_test_4.txt']
 DATA_PATH = './training/datasets/'
 RESULTS_PATH = './tests/'
 
@@ -89,10 +88,19 @@ def compare_models(models, out_png='model_performance.png'):
 
 
 if __name__ == "__main__":
-    # take input of model's optimised parameterisation from command line (if none use hugging face model)
-    if len(sys.argv[1:]) == 0:
-        model = 'felflare/bert-restore-punctuation'
+    # read in which models to test and what test dataset to use
+    data = sys.argv[1]
+    if data == 'news':
+        print(f"\nTesting model on data from source: BBC News")
+        TEST_DATASETS = ['news_test_1.txt', 'news_test_2.txt', 'news_test_3.txt', 'news_test_4.txt']
+    elif data == 'reviews':
+        print(f"\nTesting model on data from source: Yelp reviews")
+        TEST_DATASETS = ['yelp_test_1.txt', 'yelp_test_2.txt', 'yelp_test_3.txt', 'yelp_test_4.txt']
     else:
-        model = sys.argv[1:]  # likely 'outputs/best_model'
+        raise ValueError('Unknown data source')
 
-    e2e_test(model, use_cuda=False)
+    models = sys.argv[2:]  # likely 'outputs/best_model' and/or 'felflare/bert-restore-punctuation'
+    if len(models) == 0:
+        raise ValueError('No test models specified')
+
+    e2e_test(models, use_cuda=False)

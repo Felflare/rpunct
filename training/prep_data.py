@@ -80,9 +80,14 @@ def collate_news_articles():
     # split dataset into training and testing instances
     random.shuffle(summaries)
     split = math.ceil(0.9 * len(summaries))
+    train = summaries[:split]
+    test = summaries[split:]
+    print(f"\tSummaries (lines of text) in train set: {len(train)}")
+    print(f"\tSummaries (lines of text) in test set : {len(test)}")
+
     data = {
-        'train': summaries[:split],
-        'test': summaries[split:]
+        'train': train,
+        'test': test
     }
 
     return data
@@ -110,7 +115,7 @@ def create_rpunct_dataset(unformatted_data, output_data_file='rpunct_data.json',
     elif data_type == 'news':
         df = pd.DataFrame(unformatted_data, columns =['text'])
     else:
-        raise TypeError('Unknown data source')
+        raise ValueError('Unknown data source')
 
     # Dataframe Shape
     print(f"\tDataframe samples: {df.shape}")
@@ -141,6 +146,9 @@ def create_record(row, data_type='reviews'):
         observation = eval(row).decode().replace('\\n', ' ').split()
     elif data_type == 'news':
         observation = row.replace('\\n', ' ').split()
+    else:
+        raise ValueError('Unknown data source')
+
 
     # remove punctuation of each word, and label it with a tag representing what punctuation it did have
     for obs in observation:
@@ -252,10 +260,10 @@ if __name__ == "__main__":
         pipeline = 'reviews'
 
     if pipeline == 'news':
-        print(f"Preparing data from source: BBC News")
+        print(f"\nPreparing data from source: BBC News")
         news_data_pipeline()  # construct training and testing data files from BBC News articles
     elif pipeline == 'reviews':
-        print(f"Preparing data from source: Yelp reviews")
+        print(f"\nPreparing data from source: Yelp reviews")
         yelp_data_pipeline()  # construct training and testing data files from Yelp reviews
     else:
-        raise TypeError('Unknown data source')
+        raise ValueError('Unknown data source')
