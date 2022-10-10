@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import json
+import math
 import random
 import pandas as pd
 import tensorflow_datasets as tfds
@@ -22,18 +23,20 @@ def news_data_pipeline():
     """
     Full pipeline for compiling and formatting training data from BBC News articles
     """
-    # collect summaries from each JSONL file enumerating all BBC News articles for each year 2014-2022
-    summaries = []
+    # collect data from each JSONL file enumerating all BBC News articles for each year 2014-2022
+    all_news_data = collate_news_articles()
 
-    for dataset_json in NEWS_DATASETS:
-        json_path = os.path.join(NEWS_PATH, dataset_json)
+    for key in all_news_data.keys():
+        # constuct df of text and labels (punctuation tag per word)
+        print("\nLabelling data instances")
+        data_split = all_news_data[key]
+        rpunct_dataset_file = f"news_{key}_data.json"
+        create_rpunct_dataset(data_split, rpunct_dataset_file, data_type='news')
 
-        with open(json_path, 'r') as fp:
-            for line in fp:
-                summaries.append(json.loads(line)["summary"])
-
-    print(f"Assembled {len(summaries)} news article summaries.", end='\n\n')
-    print(summaries)
+        # split data into chunks for model
+        print("\nGenerating data samples")
+        split_dataset_file = f"news_{key}"
+        create_training_samples(rpunct_dataset_file, split_dataset_file)
 
 
 def yelp_data_pipeline():
@@ -42,7 +45,7 @@ def yelp_data_pipeline():
     """
     # save training/testing datasets from tensorflow to local csv files
     print("\nDownloading csv files")
-    download_df()
+    download_reviews()
 
     # formatting training and testing datasets correctly to be input into rpunct
     for dataset_txt in REVIEWS_DATASETS:
@@ -54,15 +57,37 @@ def yelp_data_pipeline():
 
         # format data as text and punctuation tag labels
         print("\nLabelling data instances")
-        data_in = os.path.join(PATH, dataset_txt)
-        data_out = os.path.join(PATH, f"{name}_data.json")
-        create_rpunct_dataset(data_in, data_out)
+        rpunct_dataset_file = f"{name}_data.json"
+        create_rpunct_dataset(dataset_txt, rpunct_dataset_file, data_type='reviews')
 
         print("\nGenerating data samples")
-        create_training_samples(f"{name}_data.json", f"{df_name}_{split_nm}")
+        split_dataset_file = f"{df_name}_{split_nm}"
+        create_training_samples(rpunct_dataset_file, split_dataset_file)
 
 
-def download_df():
+def collate_news_articles():
+    summaries = []
+
+    for dataset_json in NEWS_DATASETS:
+        json_path = os.path.join(NEWS_PATH, dataset_json)
+
+        with open(json_path, 'r') as fp:
+            for line in fp:
+                summaries.append(json.loads(line)["summary"])
+
+    print(f"Assembled {len(summaries)} news article summaries.")
+
+    # split dataset into training and testing instances
+    random.shuffle(summaries)
+    split = math.ceil(0.9 * len(summaries))
+    data = {
+        'train': summaries[:split],
+        'test': summaries[split:]
+    }
+
+    return data
+
+def download_reviews():
     # get distinct datasets for training and testing from tensorflow_datasets
     data_type = ['train', 'test']
     ds = tfds.load('yelp_polarity_reviews', split=data_type, shuffle_files=True)
@@ -74,12 +99,18 @@ def download_df():
         i.to_csv(csv_path, index=False)
 
 
-def create_rpunct_dataset(orig_yelp_dataframe, rpunct_dataset_path='rpunct_data.json'):
-    # read in the csv file as a dataframe
-    df = pd.read_csv(orig_yelp_dataframe)
+def create_rpunct_dataset(unformatted_data, output_data_file='rpunct_data.json', data_type='reviews'):
+    if data_type == 'reviews':
+        # read in the csv file as a dataframe
+        unformatted_data_path = os.path.join(PATH, unformatted_data)
+        df = pd.read_csv(unformatted_data_path)
 
-    # Filter to only positive examples
-    df = df[df['label'] == 1].reset_index(drop=True)
+        # Filter to only positive examples
+        df = df[df['label'] == 1].reset_index(drop=True)
+    elif data_type == 'news':
+        df = pd.DataFrame(unformatted_data, columns =['text'])
+    else:
+        raise TypeError('Unknown data source')
 
     # Dataframe Shape
     print(f"\tDataframe samples: {df.shape}")
@@ -88,15 +119,16 @@ def create_rpunct_dataset(orig_yelp_dataframe, rpunct_dataset_path='rpunct_data.
     all_records = []
     for i in range(df.shape[0]):
         orig_row = df['text'][i]  # fetch a single row of text data
-        records = create_record(orig_row)  # create a list enumerating each word in the row and its label: [...{id, word, label}...]
+        records = create_record(orig_row, data_type=data_type)  # create a list enumerating each word in the row and its label: [...{id, word, label}...]
         all_records.extend(records)
 
     # save the list of all {word, label} dicts to a json file
-    with open(rpunct_dataset_path, 'w') as fp:
+    output_data_path = os.path.join(PATH, output_data_file)
+    with open(output_data_path, 'w') as fp:
         json.dump(all_records, fp)
 
 
-def create_record(row):
+def create_record(row, data_type='reviews'):
     """
     Create labels for Punctuation Restoration task for each token.
     """
@@ -105,7 +137,10 @@ def create_record(row):
 
     # convert string of text (from row) into a list of words
     # row: str -> observation: list[str]
-    observation = eval(row).decode().replace('\\n', ' ').split()
+    if data_type == 'reviews':
+        observation = eval(row).decode().replace('\\n', ' ').split()
+    elif data_type == 'news':
+        observation = row.replace('\\n', ' ').split()
 
     # remove punctuation of each word, and label it with a tag representing what punctuation it did have
     for obs in observation:
@@ -211,11 +246,16 @@ def create_tokenized_obs(input_list, num_toks=500, offset=250):
 
 if __name__ == "__main__":
     # specify training pipeline (news data or yelp reviews)
-    pipeline = sys.argv[1]
+    if len(sys.argv) > 1:
+        pipeline = sys.argv[1]
+    else:
+        pipeline = 'reviews'
 
     if pipeline == 'news':
         print(f"Preparing data from source: BBC News")
         news_data_pipeline()  # construct training and testing data files from BBC News articles
-    else:
+    elif pipeline == 'reviews':
         print(f"Preparing data from source: Yelp reviews")
         yelp_data_pipeline()  # construct training and testing data files from Yelp reviews
+    else:
+        raise TypeError('Unknown data source')

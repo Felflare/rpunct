@@ -4,8 +4,9 @@
 __author__ = "Daulet N."
 __email__ = "daulet.nurmanbetov@gmail.com"
 
-import json
 import os
+import sys
+import json
 import pandas as pd
 from simpletransformers.ner import NERModel
 import matplotlib.pyplot as plt
@@ -15,11 +16,11 @@ sns.set_theme(style="darkgrid")
 sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
-TRAIN_DATASETS = ['yelp_train_1.txt', 'yelp_train_2.txt', 'yelp_train_3.txt', 'yelp_train_4.txt']
 PATH = './training/datasets/'
+EPOCHS = 1
 
 
-def e2e_train(use_cuda=True, validation=True, dataset_stats=False, training_plot=False):
+def e2e_train(use_cuda=True, validation=False, dataset_stats=False, training_plot=False):
     """
     Training pipeline to format training dataset, build model, and train it.
     """
@@ -170,7 +171,7 @@ def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_
             "evaluate_during_training": validation,
             "evaluate_during_training_steps": 5000,
             "overwrite_output_dir": True,
-            "num_train_epochs": 3,
+            "num_train_epochs": EPOCHS,
             "max_seq_length": 512,
             "lazy_loading": True
         }
@@ -210,4 +211,18 @@ def plot_training(training, out_path='training/training_loss.png'):
 
 
 if __name__ == "__main__":
-    e2e_train()
+    if len(sys.argv) > 1:
+        pipeline = sys.argv[1]
+    else:
+        pipeline = 'reviews'
+
+    if pipeline == 'news':
+        print(f"Training model on data from source: BBC News")
+        TRAIN_DATASETS = ['news_train_1.txt', 'news_train_2.txt', 'news_train_3.txt', 'news_train_4.txt']
+    elif pipeline == 'reviews':
+        print(f"Training model on data from source: Yelp reviews")
+        TRAIN_DATASETS = ['yelp_train_1.txt', 'yelp_train_2.txt', 'yelp_train_3.txt', 'yelp_train_4.txt']
+    else:
+        raise TypeError('Unknown data source')
+
+    e2e_train(use_cuda=False)
