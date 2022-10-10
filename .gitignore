@@ -2,6 +2,7 @@
 venv/
 training/datasets/
 tests/sample_results.txt
+tests/model_performance.png
 ~/tensorflow_datasets/
 runs/
 tokenizers/
@@ -10,3 +11,5 @@ training/__pycache__/
 cache_dir/
 tests/eval_results.txt
 training/training_loss.png
+training/prep_news_data.py
+provision.sh
