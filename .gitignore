@@ -1,0 +1,12 @@
+.env/
+venv/
+training/datasets/
+tests/sample_results.txt
+~/tensorflow_datasets/
+runs/
+tokenizers/
+.DS_Store
+training/__pycache__/
+cache_dir/
+tests/eval_results.txt
+training/training_loss.png
