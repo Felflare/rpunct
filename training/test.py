@@ -91,9 +91,9 @@ def compare_models(models, out_png='model_performance.png'):
 
 if __name__ == "__main__":
     # take input of model's optimised parameterisation from command line (if none use hugging face model)
-    if len(sys.argv) == 0:
+    if len(sys.argv[1:]) == 0:
         model = 'felflare/bert-restore-punctuation'
     else:
         model = sys.argv[1:]  # likely 'outputs/best_model'
 
-    e2e_test(model, use_cuda=True)
+    e2e_test(model, use_cuda=False)

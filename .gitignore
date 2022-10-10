@@ -11,5 +11,4 @@ training/__pycache__/
 cache_dir/
 tests/eval_results.txt
 training/training_loss.png
-training/prep_news_data.py
 provision.sh

@@ -6,31 +6,55 @@ __email__ = "daulet.nurmanbetov@gmail.com"
 
 import os
 import re
+import sys
 import json
 import random
 import pandas as pd
 import tensorflow_datasets as tfds
 
-TRAIN_DATASETS = ['yelp_polarity_reviews_train.csv', 'yelp_polarity_reviews_test.csv']
+REVIEWS_DATASETS = ['yelp_polarity_reviews_train.csv', 'yelp_polarity_reviews_test.csv']
+NEWS_DATASETS = ['news_2022.jsonl', 'news_2021.jsonl', 'news_2020.jsonl', 'news_2019.jsonl', 'news_2018.jsonl', 'news_2017.jsonl', 'news_2016.jsonl', 'news_2015.jsonl', 'news_2014.jsonl']
 PATH = './training/datasets/'
+NEWS_PATH = './training/datasets/news_data/'
 
-# full pipeline for downloading and formatting training data
-def create_train_datasets():
+
+def news_data_pipeline():
+    """
+    Full pipeline for compiling and formatting training data from BBC News articles
+    """
+    # collect summaries from each JSONL file enumerating all BBC News articles for each year 2014-2022
+    summaries = []
+
+    for dataset_json in NEWS_DATASETS:
+        json_path = os.path.join(NEWS_PATH, dataset_json)
+
+        with open(json_path, 'r') as fp:
+            for line in fp:
+                summaries.append(json.loads(line)["summary"])
+
+    print(f"Assembled {len(summaries)} news article summaries.", end='\n\n')
+    print(summaries)
+
+
+def yelp_data_pipeline():
+    """
+    Full pipeline for downloading and formatting training Yelp reviews data
+    """
     # save training/testing datasets from tensorflow to local csv files
     print("\nDownloading csv files")
     download_df()
 
     # formatting training and testing datasets correctly to be input into rpunct
-    for i in TRAIN_DATASETS:
+    for dataset_txt in REVIEWS_DATASETS:
         # collect metadata from csv files
-        name = i.split(".")[0]  # remove extension
+        name = dataset_txt.split(".")[0]  # remove extension
         split_nm = name.split("_")[-1]  # collect train/test label
         df_name = name.split("_")[0]  # collect dataset name
         print(f"\nGenerating dataset: {split_nm}")
 
         # format data as text and punctuation tag labels
         print("\nLabelling data instances")
-        data_in = os.path.join(PATH, i)
+        data_in = os.path.join(PATH, dataset_txt)
         data_out = os.path.join(PATH, f"{name}_data.json")
         create_rpunct_dataset(data_in, data_out)
 
@@ -186,5 +210,12 @@ def create_tokenized_obs(input_list, num_toks=500, offset=250):
 
 
 if __name__ == "__main__":
-    # construct training and testing data files from yahoo reviews
-    create_train_datasets()
+    # specify training pipeline (news data or yelp reviews)
+    pipeline = sys.argv[1]
+
+    if pipeline == 'news':
+        print(f"Preparing data from source: BBC News")
+        news_data_pipeline()  # construct training and testing data files from BBC News articles
+    else:
+        print(f"Preparing data from source: Yelp reviews")
+        yelp_data_pipeline()  # construct training and testing data files from Yelp reviews
