@@ -27,6 +27,8 @@ def news_data_pipeline():
     all_news_data = collate_news_articles()
 
     for key in all_news_data.keys():
+        print(f"\nGenerating dataset: {key.capitalize()}")
+
         # constuct df of text and labels (punctuation tag per word)
         print("\nLabelling data instances")
         data_split = all_news_data[key]
@@ -53,7 +55,7 @@ def yelp_data_pipeline():
         name = dataset_txt.split(".")[0]  # remove extension
         split_nm = name.split("_")[-1]  # collect train/test label
         df_name = name.split("_")[0]  # collect dataset name
-        print(f"\nGenerating dataset: {split_nm}")
+        print(f"\nGenerating dataset: {split_nm.capitalize()}")
 
         # format data as text and punctuation tag labels
         print("\nLabelling data instances")
@@ -75,7 +77,7 @@ def collate_news_articles():
             for line in fp:
                 summaries.append(json.loads(line)["summary"])
 
-    print(f"Assembled {len(summaries)} news article summaries.")
+    print(f"\nAssembled {len(summaries)} news article summaries.")
 
     # split dataset into training and testing instances
     random.shuffle(summaries)

@@ -8,6 +8,7 @@ import os
 import sys
 import json
 import math
+import pathlib
 import pandas as pd
 from simpletransformers.ner import NERModel
 import matplotlib.pyplot as plt
@@ -16,18 +17,22 @@ import seaborn as sns
 sns.set_theme(style="darkgrid")
 sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 
+VALID_SOURCES = ['news', 'reviews']
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
 PATH = './training/datasets/'
 EPOCHS = 3
 
 
-def e2e_train(use_cuda=True, validation=False, dataset_stats=False, training_plot=False):
+def e2e_train(data_type='reviews', use_cuda=True, validation=False, dataset_stats=False, training_plot=False):
     """
     Training pipeline to format training dataset, build model, and train it.
     """
+    if data_type not in VALID_SOURCES:
+        raise ValueError('Unknown data source')
+
     # generate correctly formatted training data
     print("\nPreparing training data")
-    prepare_data(TRAIN_DATASETS, validation=validation, print_stats=dataset_stats)
+    prepare_data(data_type=data_type, validation=validation, print_stats=dataset_stats)
 
     # create a simpletransformer model and use data to train it
     print("\nBuilding & training model")
@@ -41,29 +46,32 @@ def e2e_train(use_cuda=True, validation=False, dataset_stats=False, training_plo
     return model
 
 
-def prepare_data(datasets, output_txt='rpunct_train_set.txt', validation=True, print_stats=False):
+def prepare_data(data_type='reviews', train_or_test='train', validation=True, print_stats=False):
     """
     Prepares data from Original text into Connnl formatted datasets ready for training
     In addition constraints label space to only labels we care about
     """
     # load formatted data generated through `prep_data.py`
-    token_data = load_datasets(datasets)
+    token_data = load_datasets(data_type, train_or_test)
 
     # remove any invalid labels
     clean_up_labels(token_data, VALID_LABELS)
 
-    # split train/test datasets, and convert each to a text file
+    # split train/test datasets, convert each to a text file, and print dataset stats if desired
     if validation:
         # training & validation sets
         split = math.ceil(0.9 * len(token_data))
         train_set = token_data[:split].copy()
 
         val_set = token_data[split:].copy()
-        val_set_path = os.path.join(PATH, 'rpunct_val_set.txt')
+        val_output_txt='rpunct_val_set.txt'
+        val_set_path = os.path.join(PATH, val_output_txt)
 
+        # format validaton set as Connl NER txt file
         create_text_file(val_set, val_set_path)
         print(f"\tValidation dataset shape: ({len(val_set)}, {len(val_set[0])}, {len(val_set[0][0])})")
 
+        # print label distribution in validation set
         if print_stats:
             val_stats = get_label_stats(val_set)
             val_stats = pd.DataFrame.from_dict(val_stats, orient='index', columns=['count'])
@@ -71,11 +79,13 @@ def prepare_data(datasets, output_txt='rpunct_train_set.txt', validation=True, p
         train_set = token_data.copy()
         val_stats = "No validation set"
 
+    # format training set as Connl NER txt file
+    output_txt = f'rpunct_{train_or_test}_set.txt'
     train_set_path = os.path.join(PATH, output_txt)
     create_text_file(train_set, train_set_path)
     print(f"\tTraining dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
 
-    # output statistics of each dataset
+    # print label distribution in training set
     if print_stats:
         train_stats = get_label_stats(train_set)
         train_stats = pd.DataFrame.from_dict(train_stats, orient='index', columns=['count'])
@@ -86,17 +96,26 @@ def prepare_data(datasets, output_txt='rpunct_train_set.txt', validation=True, p
         print(f"\n\tValidation data statistics:")
         print(val_stats)
 
-    return train_set
 
+def load_datasets(data_type='reviews', train_or_test='train'):
+    """
+    First, locate the data files generated from running `prep_data.py`.
+    Then, given this list of data paths return a single data object containing all data slices.
+    """
+    # find training data files
+    if data_type == 'news':
+        print(f"\nTraining model on data from source: BBC News")
+        data_file_pattern = f'news_{train_or_test}_*.txt'
+        dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
+    elif data_type == 'reviews':
+        print(f"\nTraining model on data from source: Yelp reviews")
+        data_file_pattern = f'yelp_{train_or_test}_*.txt'
+        dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
 
-def load_datasets(dataset_paths):
-    """
-    Given a list of data paths returns a single data object containing all data slices
-    """
+    # collate these into a single data object
     token_data = []
     for d_set in dataset_paths:
-        dataset_path = os.path.join(PATH, d_set)
-        with open(dataset_path, 'r') as fp:
+        with open(d_set, 'r') as fp:
             data_slice = json.load(fp)
 
         token_data.extend(data_slice)
@@ -217,13 +236,4 @@ if __name__ == "__main__":
     else:
         pipeline = 'reviews'
 
-    if pipeline == 'news':
-        print(f"\nTraining model on data from source: BBC News")
-        TRAIN_DATASETS = ['news_train_1.txt', 'news_train_2.txt', 'news_train_3.txt', 'news_train_4.txt']
-    elif pipeline == 'reviews':
-        print(f"\nTraining model on data from source: Yelp reviews")
-        TRAIN_DATASETS = ['yelp_train_1.txt', 'yelp_train_2.txt', 'yelp_train_3.txt', 'yelp_train_4.txt']
-    else:
-        raise ValueError('Unknown data source')
-
-    e2e_train()
+    e2e_train(data_type=pipeline, use_cuda=False)

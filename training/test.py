@@ -18,14 +18,14 @@ DATA_PATH = './training/datasets/'
 RESULTS_PATH = './tests/'
 
 
-def e2e_test(models, use_cuda=True):
+def e2e_test(models, data_type='reviews', use_cuda=True):
     """
     Testing model performance after full training process has been completed.
     """
     # format testing data into txt
     print("\nPreparing testing data")
     test_data_txt = 'rpunct_test_set.txt'
-    test_data_lst = prepare_data(TEST_DATASETS, output_txt=test_data_txt, validation=False)
+    prepare_data(data_type=data_type, train_or_test='test', validation=False)
     all_metrics = []
 
     for model_path in models:
@@ -92,10 +92,8 @@ if __name__ == "__main__":
     data = sys.argv[1]
     if data == 'news':
         print(f"\nTesting model on data from source: BBC News")
-        TEST_DATASETS = ['news_test_1.txt', 'news_test_2.txt', 'news_test_3.txt', 'news_test_4.txt']
     elif data == 'reviews':
         print(f"\nTesting model on data from source: Yelp reviews")
-        TEST_DATASETS = ['yelp_test_1.txt', 'yelp_test_2.txt', 'yelp_test_3.txt', 'yelp_test_4.txt']
     else:
         raise ValueError('Unknown data source')
 
@@ -103,4 +101,4 @@ if __name__ == "__main__":
     if len(models) == 0:
         raise ValueError('No test models specified')
 
-    e2e_test(models, use_cuda=False)
+    e2e_test(models, data_type=data, use_cuda=False)
