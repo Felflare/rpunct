@@ -38,7 +38,7 @@ parser.add_argument(
 
 parser.add_argument(
     '-s',
-    '--statistics',
+    '--stats',
     action='store_true',
     default=False,
     help="Print label distribution statistics about the test dataset."
@@ -46,8 +46,7 @@ parser.add_argument(
 
 # parse arguments
 args = parser.parse_args()
-print(f"RUNNING TESTING.\nArguments:")
-print(pd.DataFrame(vars(args)), end='\n\n')
+print(f"RUNNING TESTING.\nArguments:\n{pd.Series(vars(args))}", end='\n\n')
 
 # run data preparation pipeline if training dataset does not exist
 dataset_exists = check_data_exists(data_type=args.data, train_or_test='test')
@@ -61,3 +60,6 @@ e2e_test(
     use_cuda=args.cuda,
     print_stats=args.stats
 )
+
+# run data preparation pipeline
+e2e_data(args.data)

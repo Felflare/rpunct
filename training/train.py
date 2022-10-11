@@ -74,7 +74,7 @@ def prepare_data(data_type='reviews', train_or_test='train', validation=True, pr
         # print label distribution in validation set
         if print_stats:
             val_stats = get_label_stats(val_set)
-            val_stats = pd.DataFrame.from_dict(train_stats.items())
+            val_stats = pd.DataFrame.from_dict(val_stats.items())
             val_stats.columns = ['Punct Tag', 'Count']
     else:
         train_set = token_data.copy()

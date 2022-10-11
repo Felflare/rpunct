@@ -97,7 +97,7 @@ def check_data_exists(data_type='news', train_or_test='train'):
     data_file_pattern = os.path.join(PATH, f'rpunct_{train_or_test}_set.txt')
     data_file_pattern = pathlib.Path(data_file_pattern)
     final_data_file = data_file_pattern.is_file()
-    print(f"Dataset files found: {final_data_file}")
+    print(f"\nDataset files found: {final_data_file}")
 
     return final_data_file
 
