@@ -110,16 +110,13 @@ def load_datasets(data_type='reviews', train_or_test='train'):
         data_file_pattern = f'news_{train_or_test}_*.txt'
         dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
 
-        if len(dataset_paths) == 0:
-            raise FileNotFoundError("No dataset files found. You may have forgotten to run the `prep_data.py` preparation process on the dataset you want to use.")
-
-    elif data_type == 'reviews':
+    else:  # data_type == 'reviews'
         print(f"\nLoading data from source: Yelp reviews")
         data_file_pattern = f'yelp_{train_or_test}_*.txt'
         dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
 
-        if len(dataset_paths) == 0:
-            raise FileNotFoundError("No dataset files found. You may have forgotten to run the `prep_data.py` preparation process on the dataset you want to use.")
+    if len(dataset_paths) == 0:
+        raise FileNotFoundError("No dataset files found. You may have forgotten to run the `prep_data.py` preparation process on the dataset you want to use.")
 
     # collate these into a single data object
     token_data = []

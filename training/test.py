@@ -105,4 +105,4 @@ if __name__ == "__main__":
     if len(models) == 0:
         raise ValueError('No test models specified')
 
-    e2e_test(models, data_type=data)
+    e2e_test(models, data_type=data, use_cuda=False)

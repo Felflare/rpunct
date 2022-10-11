@@ -10,6 +10,7 @@ import sys
 import json
 import math
 import random
+import pathlib
 import pandas as pd
 import tensorflow_datasets as tfds
 
@@ -18,6 +19,17 @@ NEWS_DATASETS = ['news_2022.jsonl', 'news_2021.jsonl', 'news_2020.jsonl', 'news_
 PATH = './training/datasets/'
 NEWS_PATH = './training/datasets/news_data/'
 SUMMARY_OR_BODY = 'summary'
+
+
+def e2e_data(data_type='news'):
+    if data_type == 'news':
+        print(f"\nPreparing data from source: BBC News")
+        news_data_pipeline()  # construct training and testing data files from BBC News articles
+    elif data_type == 'reviews':
+        print(f"\nPreparing data from source: Yelp reviews")
+        yelp_data_pipeline()  # construct training and testing data files from Yelp reviews
+    else:
+        raise ValueError('Unknown data source')
 
 
 def news_data_pipeline():
@@ -66,6 +78,28 @@ def yelp_data_pipeline():
         print("\nGenerating data samples")
         split_dataset_file = f"{df_name}_{split_nm}"
         create_training_samples(rpunct_dataset_file, split_dataset_file)
+
+
+def check_data_exists(data_type='news', train_or_test='train'):
+    # check whether the training data has been created or not yet
+    if data_type == 'news':
+        data_file_pattern = f'news_{train_or_test}_*.txt'
+        dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
+
+    else:  # data_type == 'reviews'
+        data_file_pattern = f'yelp_{train_or_test}_*.txt'
+        dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
+
+    if len(dataset_paths) == 0:
+        print(f"Dataset files found: False")
+        return False
+
+    data_file_pattern = os.path.join(PATH, f'rpunct_{train_or_test}_set.txt')
+    data_file_pattern = pathlib.Path(data_file_pattern)
+    final_data_file = data_file_pattern.is_file()
+    print(f"Dataset files found: {final_data_file}")
+
+    return final_data_file
 
 
 def collate_news_articles():
@@ -262,11 +296,4 @@ if __name__ == "__main__":
     else:
         pipeline = 'reviews'
 
-    if pipeline == 'news':
-        print(f"\nPreparing data from source: BBC News")
-        news_data_pipeline()  # construct training and testing data files from BBC News articles
-    elif pipeline == 'reviews':
-        print(f"\nPreparing data from source: Yelp reviews")
-        yelp_data_pipeline()  # construct training and testing data files from Yelp reviews
-    else:
-        raise ValueError('Unknown data source')
+    e2e_data(pipeline)
