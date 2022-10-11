@@ -74,7 +74,8 @@ def prepare_data(data_type='reviews', train_or_test='train', validation=True, pr
         # print label distribution in validation set
         if print_stats:
             val_stats = get_label_stats(val_set)
-            val_stats = pd.DataFrame.from_dict(val_stats, orient='index', columns=['count'])
+            val_stats = pd.DataFrame.from_dict(train_stats.items())
+            val_stats.columns = ['Punct Tag', 'Count']
     else:
         train_set = token_data.copy()
         val_stats = "No validation set"
@@ -88,7 +89,8 @@ def prepare_data(data_type='reviews', train_or_test='train', validation=True, pr
     # print label distribution in training set
     if print_stats:
         train_stats = get_label_stats(train_set)
-        train_stats = pd.DataFrame.from_dict(train_stats, orient='index', columns=['count'])
+        train_stats = pd.DataFrame.from_dict(train_stats.items())
+        train_stats.columns = ['Punct Tag', 'Count']
 
         print(f"\tTraining data statistics:")
         print(train_stats)
@@ -107,10 +109,17 @@ def load_datasets(data_type='reviews', train_or_test='train'):
         print(f"\nLoading data from source: BBC News")
         data_file_pattern = f'news_{train_or_test}_*.txt'
         dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
+
+        if len(dataset_paths) == 0:
+            raise FileNotFoundError("No dataset files found. You may have forgotten to run the `prep_data.py` preparation process on the dataset you want to use.")
+
     elif data_type == 'reviews':
         print(f"\nLoading data from source: Yelp reviews")
         data_file_pattern = f'yelp_{train_or_test}_*.txt'
         dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
+
+        if len(dataset_paths) == 0:
+            raise FileNotFoundError("No dataset files found. You may have forgotten to run the `prep_data.py` preparation process on the dataset you want to use.")
 
     # collate these into a single data object
     token_data = []
