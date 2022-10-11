@@ -104,11 +104,11 @@ def load_datasets(data_type='reviews', train_or_test='train'):
     """
     # find training data files
     if data_type == 'news':
-        print(f"\nTraining model on data from source: BBC News")
+        print(f"\nLoading data from source: BBC News")
         data_file_pattern = f'news_{train_or_test}_*.txt'
         dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
     elif data_type == 'reviews':
-        print(f"\nTraining model on data from source: Yelp reviews")
+        print(f"\nLoading data from source: Yelp reviews")
         data_file_pattern = f'yelp_{train_or_test}_*.txt'
         dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
 
@@ -193,7 +193,9 @@ def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_
             "overwrite_output_dir": True,
             "num_train_epochs": EPOCHS,
             "max_seq_length": 512,
-            "lazy_loading": True
+            "lazy_loading": True,
+            "save_steps": -1,
+            "save_model_every_epoch": True
         }
     )
 

@@ -17,6 +17,7 @@ REVIEWS_DATASETS = ['yelp_polarity_reviews_train.csv', 'yelp_polarity_reviews_te
 NEWS_DATASETS = ['news_2022.jsonl', 'news_2021.jsonl', 'news_2020.jsonl', 'news_2019.jsonl', 'news_2018.jsonl', 'news_2017.jsonl', 'news_2016.jsonl', 'news_2015.jsonl', 'news_2014.jsonl']
 PATH = './training/datasets/'
 NEWS_PATH = './training/datasets/news_data/'
+SUMMARY_OR_BODY = 'summary'
 
 
 def news_data_pipeline():
@@ -27,7 +28,7 @@ def news_data_pipeline():
     all_news_data = collate_news_articles()
 
     for key in all_news_data.keys():
-        print(f"\nGenerating dataset: {key.capitalize()}")
+        print(f"\nGenerating dataset: {key.upper()}")
 
         # constuct df of text and labels (punctuation tag per word)
         print("\nLabelling data instances")
@@ -55,7 +56,7 @@ def yelp_data_pipeline():
         name = dataset_txt.split(".")[0]  # remove extension
         split_nm = name.split("_")[-1]  # collect train/test label
         df_name = name.split("_")[0]  # collect dataset name
-        print(f"\nGenerating dataset: {split_nm.capitalize()}")
+        print(f"\nGenerating dataset: {split_nm.upper()}")
 
         # format data as text and punctuation tag labels
         print("\nLabelling data instances")
@@ -75,7 +76,7 @@ def collate_news_articles():
 
         with open(json_path, 'r') as fp:
             for line in fp:
-                summaries.append(json.loads(line)["summary"])
+                summaries.append(json.loads(line)[SUMMARY_OR_BODY])
 
     print(f"\nAssembled {len(summaries)} news article summaries.")
 
