@@ -290,10 +290,8 @@ def create_tokenized_obs(input_list, num_toks=500, offset=250):
 
 
 if __name__ == "__main__":
-    # specify training pipeline (news data or yelp reviews)
-    if len(sys.argv) > 1:
-        pipeline = sys.argv[1]
-    else:
-        pipeline = 'reviews'
+    # specify dataset to curate
+    data = 'news'
 
-    e2e_data(pipeline)
+    # run data preparation pipeline
+    e2e_data(data)

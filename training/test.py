@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # 💾⚙️🔮
 
+__author__ = "Tom Potter"
+__email__ = "tom.potter@bbc.co.uk"
+
 import os
 import sys
 import numpy as np
@@ -92,17 +95,9 @@ def compare_models(results, model_locations, out_png='model_performance.png'):
 
 
 if __name__ == "__main__":
-    # read in which models to test and what test dataset to use
-    data = sys.argv[1]
-    if data == 'news':
-        print(f"\nTesting model on data from source: BBC News")
-    elif data == 'reviews':
-        print(f"\nTesting model on data from source: Yelp reviews")
-    else:
-        raise ValueError('Unknown data source')
+    # specify which models to test and what test dataset to use
+    data = 'news'
+    models = ['outputs/best_model', 'felflare/bert-restore-punctuation']
 
-    models = sys.argv[2:]  # likely 'outputs/best_model' and/or 'felflare/bert-restore-punctuation'
-    if len(models) == 0:
-        raise ValueError('No test models specified')
-
+    # run testing pipeline
     e2e_test(models, data_type=data, use_cuda=False)

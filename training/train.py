@@ -5,7 +5,6 @@ __author__ = "Daulet N."
 __email__ = "daulet.nurmanbetov@gmail.com"
 
 import os
-import sys
 import json
 import math
 import pathlib
@@ -239,9 +238,9 @@ def plot_training(training, out_path='training/training_loss.png'):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        pipeline = sys.argv[1]
-    else:
-        pipeline = 'reviews'
+    # specify which training data to use and whether to use a GPU
+    data = 'news'
+    cuda = False
 
-    e2e_train(data_type=pipeline, use_cuda=False)
+    # run training pipeline using news data
+    e2e_train(data_type=data, use_cuda=cuda)
