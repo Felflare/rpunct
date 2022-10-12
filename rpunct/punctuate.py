@@ -4,7 +4,9 @@
 __author__ = "Daulet N."
 __email__ = "daulet.nurmanbetov@gmail.com"
 
+import os
 import logging
+import pathlib
 from langdetect import detect
 from simpletransformers.ner import NERModel
 
@@ -15,8 +17,16 @@ class RestorePuncts:
         self.wrds_per_pred = wrds_per_pred
         self.overlap_wrds = 30
         self.valid_labels = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
-        self.model = NERModel("bert", self.model_location, labels=self.valid_labels,
-                              args={"silent": True, "max_seq_length": 512}, use_cuda=use_cuda)
+        self.model = NERModel(
+            "bert",
+            self.model_location,
+            labels=self.valid_labels,
+            use_cuda=use_cuda,
+            args={
+                "silent": True,
+                "max_seq_length": 512
+            }
+        )
 
     def punctuate(self, text: str, lang:str=''):
         """
@@ -176,11 +186,43 @@ class RestorePuncts:
         return punct_resp
 
 
+def run_rpunct(use_cuda=False, input_txt='tests/sample_text.txt', output_txt=None, model_location='felflare/bert-restore-punctuation'):
+    # generate instance of rpunct model
+    punct_model = RestorePuncts(use_cuda=use_cuda, model_location=model_location)
+
+    # read in txt file file
+    print(f"\nReading plaintext from file: {input_txt}")
+    try:
+        with open(input_txt, 'r') as fp:
+            unpunct_text = fp.read()
+    except FileNotFoundError:
+        input_txt = os.path.join('../', input_txt)
+        with open(input_txt, 'r') as fp:
+            unpunct_text = fp.read()
+
+    # predict text and print / write out
+    punctuated = punct_model.punctuate(unpunct_text)
+
+    if output_txt is None:
+        # print output to command line
+        print("\nPrinting punctuated text", end='\n\n')
+        print(punctuated)
+    else:
+        # check if output directory exists
+        output_path, output_file = os.path.split(output_txt)
+        output_path_exists = os.path.isdir(output_path)
+
+        # print punctuated text to output file
+        if output_path_exists or output_path == '':
+            print(f"Writing punctuated text to file: {output_txt}")
+            with open(output_txt, 'w') as fp:
+                fp.write(punctuated)
+        else:
+            raise FileNotFoundError("Directory specified to ouptut text file to does not exist.")
+
+
 if __name__ == "__main__":
-    punct_model = RestorePuncts(use_cuda=False)
-    # read test file
-    with open('../tests/sample_text.txt', 'r') as fp:
-        test_sample = fp.read()
-    # predict text and print
-    punctuated = punct_model.punctuate(test_sample)
-    print(punctuated)
+    cuda = False
+    input = 'tests/sample_text.txt'
+    output = 'output.txt'
+    run_rpunct(use_cuda=cuda, input_txt=input, output_txt=output)
