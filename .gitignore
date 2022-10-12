@@ -7,9 +7,8 @@ cache_dir/
 training/__pycache__/
 training/datasets/
 training/training_loss.png
-tests/*
+tests/
 !tests/sample_text.txt
-tests/eval_results.txt
 rpunct/__pycache__
 provision.sh
 .DS_Store

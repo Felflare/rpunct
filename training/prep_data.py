@@ -6,7 +6,6 @@ __email__ = "daulet.nurmanbetov@gmail.com"
 
 import os
 import re
-import sys
 import json
 import math
 import random

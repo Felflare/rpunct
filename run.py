@@ -1,5 +1,3 @@
-import os
-import pathlib
 import argparse
 import pandas as pd
 from training.test import e2e_test
@@ -37,6 +35,16 @@ if __name__ == "__main__":
         choices=['news', 'reviews'],
         default='news',
         help="Specify the dataset to be used to test the model: BBC News (`news`) or Yelp reviews (`reviews`) - default is BBC News."
+    )
+
+    train_parser.add_argument(
+        '-e',
+        '--epochs',
+        metavar='EPOCHS',
+        action='store',
+        type=int,
+        default=3,
+        help="Specify the number of epochs over which to run training - default is 3."
     )
 
     train_parser.add_argument(
@@ -167,7 +175,8 @@ if __name__ == "__main__":
                 use_cuda=args.cuda,
                 validation=args.val,
                 dataset_stats=args.stats,
-                training_plot=args.plot
+                training_plot=args.plot,
+                epochs=args.epochs
             )
         else:  # args.stage == 'test'
             # run model testing pipeline

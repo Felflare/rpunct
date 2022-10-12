@@ -19,10 +19,9 @@ sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 VALID_SOURCES = ['news', 'reviews']
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
 PATH = './training/datasets/'
-EPOCHS = 3
 
 
-def e2e_train(data_type='reviews', use_cuda=True, validation=False, dataset_stats=False, training_plot=False):
+def e2e_train(data_type='reviews', use_cuda=True, validation=False, dataset_stats=False, training_plot=False, epochs=3):
     """
     Training pipeline to format training dataset, build model, and train it.
     """
@@ -35,7 +34,7 @@ def e2e_train(data_type='reviews', use_cuda=True, validation=False, dataset_stat
 
     # create a simpletransformer model and use data to train it
     print("\nBuilding & training model")
-    model, steps, tr_details = train_model(use_cuda=use_cuda, validation=validation)
+    model, steps, tr_details = train_model(use_cuda=use_cuda, validation=validation, epochs=epochs)
     print(f"Steps: {steps}; Train details: {tr_details}")
 
     # plot the progression/convergence over training/validation
@@ -176,7 +175,7 @@ def get_label_stats(dataset):
     return calcs
 
 
-def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_set.txt', use_cuda=True, validation=True):
+def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_set.txt', use_cuda=True, validation=True, epochs=3):
     """
     Trains simpletransformers model.
     Args:
@@ -196,7 +195,7 @@ def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_
             "evaluate_during_training": validation,
             "evaluate_during_training_steps": 5000,
             "overwrite_output_dir": True,
-            "num_train_epochs": EPOCHS,
+            "num_train_epochs": epochs,
             "max_seq_length": 512,
             "lazy_loading": True,
             "save_steps": -1,

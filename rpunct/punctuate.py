@@ -6,7 +6,6 @@ __email__ = "daulet.nurmanbetov@gmail.com"
 
 import os
 import logging
-import pathlib
 from langdetect import detect
 from simpletransformers.ner import NERModel
 
