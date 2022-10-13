@@ -164,7 +164,8 @@ if __name__ == "__main__":
 
     # Parse these arguments
     args = parser.parse_args()
-    print(f"Arguments:\n{pd.Series(vars(args))}")
+    print("\n> Arguments:", end='\n\n')
+    print(pd.Series(vars(args)))
 
     # Run the pipeline for the specifc ML processing stage selected
     if args.stage == 'data':

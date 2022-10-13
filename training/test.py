@@ -29,7 +29,6 @@ def e2e_test(models, data_type='reviews', use_cuda=True, print_stats=False, outp
     Testing model performance after full training process has been completed.
     """
     # format testing data into txt
-    print("\nPreparing testing data")
     test_data_txt = 'rpunct_test_set.txt'
     prepare_data(data_type=data_type, print_stats=print_stats, train_or_test='test', validation=False)
     all_metrics = []
@@ -43,13 +42,15 @@ def e2e_test(models, data_type='reviews', use_cuda=True, print_stats=False, outp
             use_cuda=use_cuda,
             args={"max_seq_length": 512}
         )
-        print(f"\nModel loaded from: {model_path}")
+        print(f"\n> Model loaded from: {model_path}")
 
         # test model after its been fully trained
         metrics, outputs, predictions = test_model(model, test_data_txt)
         all_metrics.append(metrics)
 
     compare_models(all_metrics, models, out_png=output_file)
+
+    print("\n> Model testing complete", end='\n\n')
 
 
 def test_model(model, in_txt):
@@ -62,10 +63,11 @@ def test_model(model, in_txt):
     """
     # load data and test model
     test_data_path = os.path.join(DATA_PATH, in_txt)
-    print(f"\nTesting model on dataset: {test_data_path}", end='\n\n')
+    print(f"\n> Testing model on dataset: {test_data_path}", end='\n\n')
 
     result, model_outputs, wrong_preds = model.eval_model(test_data_path, output_dir=RESULTS_PATH)
-    print(f"\nResults: {result}")
+    print("\n\t> Results:")
+    print(f"\t* {result}")
 
     return result, model_outputs, wrong_preds
 
@@ -100,7 +102,7 @@ def compare_models(results, model_locations, out_png='model_performance.png'):
     ax.set(title="Test Performance of Optimised Models")
 
     fig.savefig(plot_path)
-    print(f"\nPerformance comparison saved to: {plot_path}")
+    print(f"\t* Performance comparison saved to: {plot_path}")
 
 
 if __name__ == "__main__":

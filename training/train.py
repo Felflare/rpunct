@@ -29,17 +29,18 @@ def e2e_train(data_type='reviews', use_cuda=True, validation=False, dataset_stat
         raise ValueError('Unknown data source')
 
     # generate correctly formatted training data
-    print("\nPreparing training data")
     prepare_data(data_type=data_type, validation=validation, print_stats=dataset_stats)
 
     # create a simpletransformer model and use data to train it
-    print("\nBuilding & training model")
+    print("\n> Building & training model")
     model, steps, tr_details = train_model(use_cuda=use_cuda, validation=validation, epochs=epochs)
-    print(f"Steps: {steps}; Train details: {tr_details}")
+    print(f"\n\t* Steps: {steps}; Train details: {tr_details}")
 
     # plot the progression/convergence over training/validation
     if validation and training_plot:
         plot_training(tr_details)
+
+    print("\n> Model training complete", end='\n\n')
 
     return model
 
@@ -67,7 +68,7 @@ def prepare_data(data_type='reviews', train_or_test='train', validation=True, pr
 
         # format validaton set as Connl NER txt file
         create_text_file(val_set, val_set_path)
-        print(f"\tValidation dataset shape: ({len(val_set)}, {len(val_set[0])}, {len(val_set[0][0])})")
+        print(f"\t* Validation dataset shape: ({len(val_set)}, {len(val_set[0])}, {len(val_set[0][0])})")
 
         # print label distribution in validation set
         if print_stats:
@@ -81,7 +82,7 @@ def prepare_data(data_type='reviews', train_or_test='train', validation=True, pr
     output_txt = f'rpunct_{train_or_test}_set.txt'
     train_set_path = os.path.join(PATH, output_txt)
     create_text_file(train_set, train_set_path)
-    print(f"\t{train_or_test.capitalize()}ing dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
+    print(f"\t* {train_or_test.capitalize()}ing dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
 
     # print label distribution in training set
     if print_stats:
@@ -89,11 +90,11 @@ def prepare_data(data_type='reviews', train_or_test='train', validation=True, pr
         train_stats = pd.DataFrame.from_dict(train_stats.items())
         train_stats.columns = ['Punct Tag', 'Count']
 
-        print(f"\t{train_or_test.capitalize()}ing data statistics:")
+        print(f"\t* {train_or_test.capitalize()}ing data statistics:")
         print(train_stats)
 
         if validation:
-            print(f"\n\tValidation data statistics:")
+            print(f"\t* Validation data statistics:")
             print(val_stats)
 
 
@@ -104,12 +105,12 @@ def load_datasets(data_type='reviews', train_or_test='train'):
     """
     # find training data files
     if data_type == 'news':
-        print(f"\nLoading data from source: BBC News")
+        print(f"\n> Loading data from source: BBC News")
         data_file_pattern = f'news_{train_or_test}_*.txt'
         dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
 
     else:  # data_type == 'reviews'
-        print(f"\nLoading data from source: Yelp reviews")
+        print(f"\n> Loading data from source: Yelp reviews")
         data_file_pattern = f'yelp_{train_or_test}_*.txt'
         dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
 
@@ -185,7 +186,7 @@ def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_
         - validation (bool): Toggle to exploit validation set during training (validates performance every 5000 steps).
     """
     # Create a NERModel
-    print("\tBuilding NER model", end='\n\n')
+    print("\t* Building NER model")
     model = NERModel(
         "bert",
         "bert-base-uncased",
@@ -206,8 +207,8 @@ def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_
     # Train the model
     train_data_path = os.path.join(PATH, train_data_txt)
     val_data_path = os.path.join(PATH, val_data_txt)
-    print(f"\n\tTraining model on dataset: {train_data_path}")
-    print(f"\tValidate model during training: {validation}", end='\n\n')
+    print(f"\t* Training model on dataset: {train_data_path}")
+    print(f"\t* Validate model during training: {validation}")
 
     steps, tr_details = model.train_model(train_data_path, eval_data=val_data_path)
 

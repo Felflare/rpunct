@@ -14,22 +14,24 @@ import pandas as pd
 import tensorflow_datasets as tfds
 
 REVIEWS_DATASETS = ['yelp_polarity_reviews_train.csv', 'yelp_polarity_reviews_test.csv']
-# NEWS_DATASETS = ['news_2022.jsonl', 'news_2021.jsonl', 'news_2020.jsonl', 'news_2019.jsonl', 'news_2018.jsonl', 'news_2017.jsonl', 'news_2016.jsonl', 'news_2015.jsonl', 'news_2014.jsonl']
-NEWS_DATASETS = ['news_2022.jsonl', 'news_2021.jsonl']
+NEWS_DATASETS = ['news_2022.jsonl', 'news_2021.jsonl', 'news_2020.jsonl', 'news_2019.jsonl', 'news_2018.jsonl', 'news_2017.jsonl', 'news_2016.jsonl', 'news_2015.jsonl', 'news_2014.jsonl']
+# NEWS_DATASETS = ['news_2022.jsonl', 'news_2021.jsonl']
 PATH = './training/datasets/'
 NEWS_PATH = './training/datasets/news_data/'
-SUMMARY_OR_BODY = 'body'
+SUMMARY_OR_BODY = 'summary'
 
 
 def e2e_data(data_type='news'):
     if data_type == 'news':
-        print(f"\nPreparing data from source: BBC News")
+        print(f"\n> Preparing data from source: BBC News ({SUMMARY_OR_BODY})")
         news_data_pipeline()  # construct training and testing data files from BBC News articles
     elif data_type == 'reviews':
-        print(f"\nPreparing data from source: Yelp reviews")
+        print("\n> Preparing data from source: Yelp reviews")
         yelp_data_pipeline()  # construct training and testing data files from Yelp reviews
     else:
         raise ValueError('Unknown data source')
+
+    print("\n> Data generation complete", end='\n\n')
 
 
 def news_data_pipeline():
@@ -40,18 +42,18 @@ def news_data_pipeline():
     all_news_data = collate_news_articles()
 
     for key in all_news_data.keys():
-        print(f"\nGenerating dataset: {key.upper()}")
+        print(f"\n> Generating dataset: {key.upper()}")
 
         # constuct df of text and labels (punctuation tag per word)
-        print("\nLabelling data instances")
+        print("\t* Labelling data instances")
         data_split = all_news_data[key]
         rpunct_dataset_file = f"news_{key}_data.json"
         create_rpunct_dataset(data_split, rpunct_dataset_file, data_type='news')
 
         # split data into chunks for model
-        print("\nGenerating data samples")
+        print("\t* Generating data samples")
         split_dataset_file = f"news_{key}"
-        create_training_samples(rpunct_dataset_file, split_dataset_file)
+        create_training_samples(rpunct_dataset_file, split_dataset_file, train_or_test=key)
 
 
 def yelp_data_pipeline():
@@ -59,25 +61,25 @@ def yelp_data_pipeline():
     Full pipeline for downloading and formatting training Yelp reviews data
     """
     # save training/testing datasets from tensorflow to local csv files
-    print("\nDownloading csv files")
+    print("\n> Downloading csv files")
     download_reviews()
 
     # formatting training and testing datasets correctly to be input into rpunct
     for dataset_txt in REVIEWS_DATASETS:
         # collect metadata from csv files
         name = dataset_txt.split(".")[0]  # remove extension
-        split_nm = name.split("_")[-1]  # collect train/test label
+        train_or_test = name.split("_")[-1]  # collect train/test label
         df_name = name.split("_")[0]  # collect dataset name
-        print(f"\nGenerating dataset: {split_nm.upper()}")
+        print(f"\n> Generating dataset: {train_or_test.upper()}")
 
         # format data as text and punctuation tag labels
-        print("\nLabelling data instances")
+        print("\t* Labelling data instances")
         rpunct_dataset_file = f"{name}_data.json"
         create_rpunct_dataset(dataset_txt, rpunct_dataset_file, data_type='reviews')
 
-        print("\nGenerating data samples")
-        split_dataset_file = f"{df_name}_{split_nm}"
-        create_training_samples(rpunct_dataset_file, split_dataset_file)
+        print("\t* Generating data samples")
+        split_dataset_file = f"{df_name}_{train_or_test}"
+        create_training_samples(rpunct_dataset_file, split_dataset_file, train_or_test=train_or_test)
 
 
 def check_data_exists(data_type='news', train_or_test='train'):
@@ -85,7 +87,7 @@ def check_data_exists(data_type='news', train_or_test='train'):
     data_type = data_type.replace("reviews", "yelp")
     full_data_file = os.path.join(PATH, f'{data_type}_{train_or_test}_data.json')
     data_file_exists = os.path.isfile(full_data_file)
-    print(f"\nDataset files found: {data_file_exists}")
+    print(f"\n> Dataset files found: {data_file_exists}")
 
     return data_file_exists
 
@@ -100,22 +102,22 @@ def collate_news_articles():
             for line in fp:
                 summaries.append(json.loads(line)[SUMMARY_OR_BODY])
 
-    print(f"\nAssembled {len(summaries)} news article summaries.")
+    print(f"\n> Assembling news article {SUMMARY_OR_BODY[:-1]}ies (one line per {SUMMARY_OR_BODY}):")
 
     # split dataset into training and testing instances
     random.shuffle(summaries)
     split = math.ceil(0.9 * len(summaries))
     train = summaries[:split]
     test = summaries[split:]
-    print(f"\tSummaries (lines of text) in train set: {len(train)}")
-    print(f"\tSummaries (lines of text) in test set : {len(test)}")
+    print(f"\t* Lines in total    : {len(summaries)}")
+    print(f"\t* Lines in train set: {len(train)}")
+    print(f"\t* Lines in test set : {len(test)}")
 
-    data = {
+    return {
         'train': train,
         'test': test
     }
 
-    return data
 
 def download_reviews():
     # get distinct datasets for training and testing from tensorflow_datasets
@@ -137,13 +139,8 @@ def create_rpunct_dataset(unformatted_data, output_data_file='rpunct_data.json',
 
         # Filter to only positive examples
         df = df[df['label'] == 1].reset_index(drop=True)
-    elif data_type == 'news':
+    else:  # data_type == 'news':
         df = pd.DataFrame(unformatted_data, columns =['text'])
-    else:
-        raise ValueError('Unknown data source')
-
-    # Dataframe Shape
-    print(f"\tDataframe samples: {df.shape}")
 
     # constuct df of text and labels (punctuation tag per word)
     all_records = []
@@ -167,13 +164,7 @@ def create_record(row, data_type='reviews'):
 
     # convert string of text (from row) into a list of words
     # row: str -> observation: list[str]
-    if data_type == 'reviews':
-        observation = eval(row).decode().replace('\\n', ' ').split()
-    elif data_type == 'news':
-        observation = row.replace('\\n', ' ').split()
-    else:
-        raise ValueError('Unknown data source')
-
+    observation = row.replace('\\n', ' ').split()
 
     # remove punctuation of each word, and label it with a tag representing what punctuation it did have
     for obs in observation:
@@ -202,7 +193,7 @@ def create_record(row, data_type='reviews'):
     return new_obs
 
 
-def create_training_samples(json_loc_file, file_out_nm='train_data', num_splits=5):
+def create_training_samples(json_loc_file, file_out_nm='train_data', num_splits=5, train_or_test='train'):
     """
     Given a looong list of tokens, splits them into 500 token chunks
     thus creating observations. This is for fine-tuning with simpletransformers
@@ -211,21 +202,22 @@ def create_training_samples(json_loc_file, file_out_nm='train_data', num_splits=
     random.seed(1337)
     _round = 0
 
+    # open json file of list of dicts enumerating words and their labels
+    json_path = os.path.join(PATH, json_loc_file)
+    with open(json_path, 'r') as fp:
+        all_records = json.load(fp)
+
+    size = len(all_records) // num_splits
+    print(f"\t\t- Total words in {train_or_test} set: {size}")
+
     # segment data into `num_splits` chunks
     while _round < num_splits:
-        # open json file of list of dicts enumerating words and their labels
-        json_path = os.path.join(PATH, json_loc_file)
-        with open(json_path, 'r') as fp:
-            all_records = json.load(fp)
-
         # locate the `_round`th chunk of dicts
-        size = len(all_records) // num_splits
-        all_records = all_records[size * _round:size * (_round + 1)]
+        all_records = all_records[size * _round: size * (_round + 1)]
 
         # break main chunk of dicts (at this loop round) into smaller chunks of 500 words (`splits` = start/end indices of small chunks)
         splits = create_tokenized_obs(all_records)
         full_data = pd.DataFrame(all_records)
-        del all_records
 
         # cycle through the start/end chunk index tuples
         observations = []
@@ -239,14 +231,11 @@ def create_training_samples(json_loc_file, file_out_nm='train_data', num_splits=
         random.shuffle(observations)
 
         out = f'{file_out_nm}_{_round}.txt'
-        print(f"\tOutput data to file: {out}")
+        print(f"\t\t- Output data to file: {out}")
 
         out_path = os.path.join(PATH, out)
         with open(out_path, 'w') as fp2:
             json.dump(observations, fp2)
-
-        del full_data
-        del observations
 
 
 def create_tokenized_obs(input_list, num_toks=500, offset=250):
