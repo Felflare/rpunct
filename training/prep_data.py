@@ -84,10 +84,12 @@ def yelp_data_pipeline():
 
 def check_data_exists(data_type='news', train_or_test='train'):
     # check whether the training data has been created or not yet
-    data_type = data_type.replace("reviews", "yelp")
+    if data_type == 'reviews':
+        data_type = 'yelp_polarity_reviews'
+
     full_data_file = os.path.join(PATH, f'{data_type}_{train_or_test}_data.json')
     data_file_exists = os.path.isfile(full_data_file)
-    print(f"\n> Dataset files found: {data_file_exists}")
+    print(f"\n> Required data file found: {data_file_exists} ({full_data_file})")
 
     return data_file_exists
 

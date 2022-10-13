@@ -43,7 +43,7 @@ def e2e_test(models, data_type='reviews', use_cuda=True, print_stats=False, outp
             use_cuda=use_cuda,
             args={"max_seq_length": 512}
         )
-        print(f"\n> Model {count}: {model_path}")
+        print(f"\n> Model {count}: {model_path}", end='\n\n')
         count += 1
 
         # test model after its been fully trained
@@ -84,7 +84,7 @@ def compare_models(results, model_locations, out_png='model_performance.png', da
         if model_name_loc == -1:
             model_name = model_locations[count]
         else:
-            model_name = model_locations[count][model_name_loc:]
+            model_name = model_locations[count][model_name_loc + 1:]
 
         # add model's metrics to the dataframe
         df2 = pd.DataFrame({
