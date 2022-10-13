@@ -32,6 +32,7 @@ def e2e_test(models, data_type='reviews', use_cuda=True, print_stats=False, outp
     test_data_txt = 'rpunct_test_set.txt'
     prepare_data(data_type=data_type, print_stats=print_stats, train_or_test='test', validation=False)
     all_metrics = []
+    count = 1
 
     for model_path in models:
         # load fully trained model
@@ -42,13 +43,14 @@ def e2e_test(models, data_type='reviews', use_cuda=True, print_stats=False, outp
             use_cuda=use_cuda,
             args={"max_seq_length": 512}
         )
-        print(f"\n> Model loaded from: {model_path}")
+        print(f"\n> Model {count}: {model_path}")
+        count += 1
 
         # test model after its been fully trained
         metrics, outputs, predictions = test_model(model, test_data_txt)
         all_metrics.append(metrics)
 
-    compare_models(all_metrics, models, out_png=output_file)
+    compare_models(all_metrics, models, out_png=output_file, data_type=data_type)
 
     print("\n> Model testing complete", end='\n\n')
 
@@ -63,16 +65,14 @@ def test_model(model, in_txt):
     """
     # load data and test model
     test_data_path = os.path.join(DATA_PATH, in_txt)
-    print(f"\n> Testing model on dataset: {test_data_path}", end='\n\n')
 
     result, model_outputs, wrong_preds = model.eval_model(test_data_path, output_dir=RESULTS_PATH)
-    print("\n\t> Results:")
-    print(f"\t* {result}")
+    print(f"\n\t* Results: {result}")
 
     return result, model_outputs, wrong_preds
 
 
-def compare_models(results, model_locations, out_png='model_performance.png'):
+def compare_models(results, model_locations, out_png='model_performance.png', data_type='news'):
     plot_path = os.path.join(RESULTS_PATH, out_png)  # output file to plot to
     df = pd.DataFrame(columns = ['Metrics', 'Results', 'Model'])  # dataframe for storing metrics to be plotted
 
@@ -99,10 +99,10 @@ def compare_models(results, model_locations, out_png='model_performance.png'):
     # plot & save single bar chart of each metric & model
     fig, ax = plt.subplots(1, 1)
     sns.barplot(ax=ax, x='Metrics', y='Results', hue='Model', data=df)
-    ax.set(title="Test Performance of Optimised Models")
+    ax.set(title=f"Test Performance of Optimised Models ({data_type} data)")
 
     fig.savefig(plot_path)
-    print(f"\t* Performance comparison saved to: {plot_path}")
+    print(f"\n> Performance comparison saved to: {plot_path}")
 
 
 if __name__ == "__main__":
