@@ -14,10 +14,11 @@ import pandas as pd
 import tensorflow_datasets as tfds
 
 REVIEWS_DATASETS = ['yelp_polarity_reviews_train.csv', 'yelp_polarity_reviews_test.csv']
-NEWS_DATASETS = ['news_2022.jsonl', 'news_2021.jsonl', 'news_2020.jsonl', 'news_2019.jsonl', 'news_2018.jsonl', 'news_2017.jsonl', 'news_2016.jsonl', 'news_2015.jsonl', 'news_2014.jsonl']
+# NEWS_DATASETS = ['news_2022.jsonl', 'news_2021.jsonl', 'news_2020.jsonl', 'news_2019.jsonl', 'news_2018.jsonl', 'news_2017.jsonl', 'news_2016.jsonl', 'news_2015.jsonl', 'news_2014.jsonl']
+NEWS_DATASETS = ['news_2022.jsonl', 'news_2021.jsonl']
 PATH = './training/datasets/'
 NEWS_PATH = './training/datasets/news_data/'
-SUMMARY_OR_BODY = 'summary'
+SUMMARY_OR_BODY = 'body'
 
 
 def e2e_data(data_type='news'):
@@ -81,23 +82,12 @@ def yelp_data_pipeline():
 
 def check_data_exists(data_type='news', train_or_test='train'):
     # check whether the training data has been created or not yet
-    if data_type == 'news':
-        data_file_pattern = f'news_{train_or_test}_*.txt'
-        dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
+    data_type = data_type.replace("reviews", "yelp")
+    full_data_file = os.path.join(PATH, f'{data_type}_{train_or_test}_data.json')
+    data_file_exists = os.path.isfile(full_data_file)
+    print(f"\nDataset files found: {data_file_exists}")
 
-    else:  # data_type == 'reviews'
-        data_file_pattern = f'yelp_{train_or_test}_*.txt'
-        dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
-
-    if len(dataset_paths) == 0:
-        print(f"Dataset files found: False")
-        return False
-
-    data_file_pattern = os.path.join(PATH, f'rpunct_{train_or_test}_set.txt')
-    final_data_file = os.path.isfile(data_file_pattern)
-    print(f"\nDataset files found: {final_data_file}")
-
-    return final_data_file
+    return data_file_exists
 
 
 def collate_news_articles():

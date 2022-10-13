@@ -24,7 +24,7 @@ DATA_PATH = './training/datasets/'
 RESULTS_PATH = './tests/'
 
 
-def e2e_test(models, data_type='reviews', use_cuda=True, print_stats=False):
+def e2e_test(models, data_type='reviews', use_cuda=True, print_stats=False, output_file='model_performance.png'):
     """
     Testing model performance after full training process has been completed.
     """
@@ -49,7 +49,7 @@ def e2e_test(models, data_type='reviews', use_cuda=True, print_stats=False):
         metrics, outputs, predictions = test_model(model, test_data_txt)
         all_metrics.append(metrics)
 
-    compare_models(all_metrics, models)
+    compare_models(all_metrics, models, out_png=output_file)
 
 
 def test_model(model, in_txt):
@@ -71,20 +71,30 @@ def test_model(model, in_txt):
 
 
 def compare_models(results, model_locations, out_png='model_performance.png'):
-    plot_path = os.path.join(RESULTS_PATH, out_png)
-    df = pd.DataFrame(columns = ['Metrics', 'Results', 'Model'])
+    plot_path = os.path.join(RESULTS_PATH, out_png)  # output file to plot to
+    df = pd.DataFrame(columns = ['Metrics', 'Results', 'Model'])  # dataframe for storing metrics to be plotted
 
+    # construct dataframe enumerating performance metrics for all models being compared
     count = 0
     for result in results:
+        # construct a name for the  model
+        model_name_loc = model_locations[count].rfind('/')
+        if model_name_loc == -1:
+            model_name = model_locations[count]
+        else:
+            model_name = model_locations[count][model_name_loc:]
+
+        # add model's metrics to the dataframe
         df2 = pd.DataFrame({
             'Metrics': [key.replace('_', ' ').capitalize() for key in result.keys()],
             'Results': result.values(),
-            'Model': f"Model {count}: {model_locations[count]}"
+            'Model': model_name
         })
 
         df = pd.concat([df, df2])
         count += 1
 
+    # plot & save single bar chart of each metric & model
     fig, ax = plt.subplots(1, 1)
     sns.barplot(ax=ax, x='Metrics', y='Results', hue='Model', data=df)
     ax.set(title="Test Performance of Optimised Models")

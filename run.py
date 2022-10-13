@@ -100,6 +100,15 @@ if __name__ == "__main__":
     )
 
     test_parser.add_argument(
+        '-o',
+        '--output',
+        metavar='OUT_TXT',
+        type=str,
+        default='model_performance.png',
+        help="Specify the output file to save the performance comparision plot - default is `model_performance`."
+    )
+
+    test_parser.add_argument(
         '-c',
         '--cuda',
         action='store_true',
@@ -184,7 +193,8 @@ if __name__ == "__main__":
                 args.models,
                 data_type=args.data,
                 use_cuda=args.cuda,
-                print_stats=args.stats
+                print_stats=args.stats,
+                output_file=args.output
             )
 
     elif args.stage == 'punct':

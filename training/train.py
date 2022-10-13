@@ -76,13 +76,12 @@ def prepare_data(data_type='reviews', train_or_test='train', validation=True, pr
             val_stats.columns = ['Punct Tag', 'Count']
     else:
         train_set = token_data.copy()
-        val_stats = "No validation set"
 
     # format training set as Connl NER txt file
     output_txt = f'rpunct_{train_or_test}_set.txt'
     train_set_path = os.path.join(PATH, output_txt)
     create_text_file(train_set, train_set_path)
-    print(f"\tTraining dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
+    print(f"\t{train_or_test.capitalize()}ing dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
 
     # print label distribution in training set
     if print_stats:
@@ -90,11 +89,12 @@ def prepare_data(data_type='reviews', train_or_test='train', validation=True, pr
         train_stats = pd.DataFrame.from_dict(train_stats.items())
         train_stats.columns = ['Punct Tag', 'Count']
 
-        print(f"\tTraining data statistics:")
+        print(f"\t{train_or_test.capitalize()}ing data statistics:")
         print(train_stats)
 
-        print(f"\n\tValidation data statistics:")
-        print(val_stats)
+        if validation:
+            print(f"\n\tValidation data statistics:")
+            print(val_stats)
 
 
 def load_datasets(data_type='reviews', train_or_test='train'):
