@@ -102,7 +102,7 @@ if __name__ == "__main__":
     test_parser.add_argument(
         '-o',
         '--output',
-        metavar='OUT_TXT',
+        metavar='OUT_PNG',
         type=str,
         default='model_performance.png',
         help="Specify the output file to save the performance comparision plot - default is `model_performance`."
