@@ -9,14 +9,12 @@ import re
 import json
 import math
 import random
-import pathlib
 import pandas as pd
 import tensorflow_datasets as tfds
-import tensorflow as tf
 
 PATH = './training/datasets/'
 NEWS_PATH = './training/datasets/news_data/'
-SUMMARY_OR_BODY = 'summary'
+SUMMARY_OR_BODY = 'body'
 
 
 def e2e_data(data_type='news'):

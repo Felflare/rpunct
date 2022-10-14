@@ -16,7 +16,6 @@ import seaborn as sns
 sns.set_theme(style="darkgrid")
 sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 
-VALID_SOURCES = ['news', 'reviews']
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
 PATH = './training/datasets/'
 
@@ -25,7 +24,7 @@ def e2e_train(data_type='reviews', use_cuda=True, validation=False, dataset_stat
     """
     Training pipeline to format training dataset, build model, and train it.
     """
-    if data_type not in VALID_SOURCES:
+    if data_type not in ['news', 'reviews']:
         raise ValueError('Unknown data source')
 
     # generate correctly formatted training data
