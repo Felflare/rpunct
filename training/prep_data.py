@@ -9,11 +9,13 @@ import re
 import json
 import math
 import random
+import pathlib
 import pandas as pd
 import tensorflow_datasets as tfds
 
 PATH = './training/datasets/'
 NEWS_PATH = './training/datasets/news_data/'
+NO_OUTPUT_FILES = 5
 SUMMARY_OR_BODY = 'body'
 
 
@@ -37,26 +39,24 @@ def e2e_data(data_type='news'):
         # constuct df of text and labels (punctuation tag per word)
         print("\t* Labelling data instances")
         data_split = all_data[key]
-        words_and_labels = create_rpunct_dataset(data_split, data_type=data_type)
+        words_and_labels = create_rpunct_dataset(data_split)
 
         # split data into chunks for model
         print("\t* Generating data samples")
-        output_file = f"news_{key}"
-        create_training_samples(words_and_labels, output_file, train_or_test=key)
+        output_file = f"{data_type}_{key}"
+        create_training_samples(words_and_labels, output_file, num_splits=NO_OUTPUT_FILES, train_or_test=key)
 
     print("\n> Data generation complete", end='\n\n')
 
 
 def check_data_exists(data_type='news', train_or_test='train'):
     # check whether the training data has been created or not yet
-    if data_type == 'reviews':
-        data_type = 'yelp_polarity_reviews'
+    data_file_pattern = f'{data_type}_{train_or_test}_*.txt'
+    dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
+    data_files_exist = len(dataset_paths) == NO_OUTPUT_FILES
+    print(f"\n> Required data files found: {data_files_exist} ({data_file_pattern})")
 
-    full_data_file = os.path.join(PATH, f'{data_type}_{train_or_test}_data.json')
-    data_file_exists = os.path.isfile(full_data_file)
-    print(f"\n> Required data file found: {data_file_exists} ({full_data_file})")
-
-    return data_file_exists
+    return data_files_exist
 
 
 def collate_news_articles(start_date=2014, end_date=2022):
@@ -114,19 +114,19 @@ def download_reviews():
     return data
 
 
-def create_rpunct_dataset(df, data_type='reviews'):
+def create_rpunct_dataset(df):
     # constuct df of text and labels (punctuation tag per word)
     all_records = []
     for i in range(df.shape[0]):
         orig_row = df['text'][i]  # fetch a single row of text data
-        records = create_record(orig_row, data_type=data_type)  # create a list enumerating each word in the row and its label: [...{id, word, label}...]
+        records = create_record(orig_row)  # create a list enumerating each word in the row and its label: [...{id, word, label}...]
         all_records.extend(records)
 
     # output the list of all {word, label} dicts
     return all_records
 
 
-def create_record(row, data_type='reviews'):
+def create_record(row):
     """
     Create labels for Punctuation Restoration task for each token.
     """

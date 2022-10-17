@@ -103,15 +103,9 @@ def load_datasets(data_type='reviews', train_or_test='train'):
     Then, given this list of data paths return a single data object containing all data slices.
     """
     # find training data files
-    if data_type == 'news':
-        print(f"\n> Loading data from source: BBC News")
-        data_file_pattern = f'news_{train_or_test}_*.txt'
-        dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
-
-    else:  # data_type == 'reviews'
-        print(f"\n> Loading data from source: Yelp reviews")
-        data_file_pattern = f'yelp_{train_or_test}_*.txt'
-        dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
+    print(f"\n> Loading data from source: {data_type.upper()}")
+    data_file_pattern = f'{data_type}_{train_or_test}_*.txt'
+    dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
 
     if len(dataset_paths) == 0:
         raise FileNotFoundError("No dataset files found. You may have forgotten to run the `prep_data.py` preparation process on the dataset you want to use.")
