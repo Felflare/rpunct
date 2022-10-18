@@ -17,7 +17,7 @@ PATH = './training/datasets/'
 NEWS_PATH = './training/datasets/news_data/'
 NO_OUTPUT_FILES = 5
 SUMMARY_OR_BODY = 'body'
-NEWS_START_YEAR = 2018
+NEWS_START_YEAR = 2022
 NEWS_END_YEAR = 2022
 
 
@@ -39,12 +39,12 @@ def e2e_data(data_type='news'):
         print(f"\n> Generating dataset: {key.upper()}")
 
         # constuct df of text and labels (punctuation tag per word)
-        print("\t* Labelling data instances")
+        print("\t* Labelling data instances", end='\n\n')
         data_split = all_data[key]
         words_and_labels = create_rpunct_dataset(data_split)
 
         # split data into chunks for model
-        print("\t* Generating data samples")
+        print("\n\t* Generating data samples")
         output_file = f"{data_type}_{key}"
         create_training_samples(words_and_labels, output_file, num_splits=NO_OUTPUT_FILES, train_or_test=key)
 
@@ -119,10 +119,11 @@ def download_reviews():
 def create_rpunct_dataset(df):
     # constuct df of text and labels (punctuation tag per word)
     all_records = []
-    for i in tqdm(range(df.shape[0])):
-        orig_row = df['text'][i]  # fetch a single row of text data
-        records = create_record(orig_row)  # create a list enumerating each word in the row and its label: [...{id, word, label}...]
-        all_records.extend(records)
+    with tqdm(range(df.shape[0])) as R:
+        for i in R:
+            orig_row = df['text'][i]  # fetch a single row of text data
+            records = create_record(orig_row)  # create a list enumerating each word in the row and its label: [...{id, word, label}...]
+            all_records.extend(records)
 
     # output the list of all {word, label} dicts
     return all_records
