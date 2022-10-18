@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 # 💾⚙️🔮
-
 __author__ = "Daulet N."
 __email__ = "daulet.nurmanbetov@gmail.com"
 
@@ -16,7 +15,9 @@ import tensorflow_datasets as tfds
 PATH = './training/datasets/'
 NEWS_PATH = './training/datasets/news_data/'
 NO_OUTPUT_FILES = 5
-SUMMARY_OR_BODY = 'summary'
+SUMMARY_OR_BODY = 'body'
+NEWS_START_YEAR = 2018
+NEWS_END_YEAR = 2022
 
 
 def e2e_data(data_type='news'):
@@ -59,7 +60,7 @@ def check_data_exists(data_type='news', train_or_test='train'):
     return data_files_exist
 
 
-def collate_news_articles(start_date=2014, end_date=2022):
+def collate_news_articles(start_date=NEWS_START_YEAR, end_date=NEWS_END_YEAR):
     news_datasets = [f'news_{date}.jsonl' for date in range(start_date, end_date + 1)]
     summaries = []
 
