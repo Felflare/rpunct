@@ -11,6 +11,7 @@ import random
 import pathlib
 import pandas as pd
 import tensorflow_datasets as tfds
+from tqdm import tqdm
 
 PATH = './training/datasets/'
 NEWS_PATH = './training/datasets/news_data/'
@@ -118,7 +119,7 @@ def download_reviews():
 def create_rpunct_dataset(df):
     # constuct df of text and labels (punctuation tag per word)
     all_records = []
-    for i in range(df.shape[0]):
+    for i in tqdm(range(df.shape[0])):
         orig_row = df['text'][i]  # fetch a single row of text data
         records = create_record(orig_row)  # create a list enumerating each word in the row and its label: [...{id, word, label}...]
         all_records.extend(records)
