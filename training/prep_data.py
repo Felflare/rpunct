@@ -39,12 +39,12 @@ def e2e_data(data_type='news'):
         print(f"\n> Generating dataset: {key.upper()}")
 
         # constuct df of text and labels (punctuation tag per word)
-        print("\t* Labelling data instances", end='\n\n')
+        # print("\t* Labelling data instances", end='\n\n')
         data_split = all_data[key]
         words_and_labels = create_rpunct_dataset(data_split)
 
         # split data into chunks for model
-        print("\n\t* Generating data samples")
+        print("\t* Generating data samples")
         output_file = f"{data_type}_{key}"
         create_training_samples(words_and_labels, output_file, num_splits=NO_OUTPUT_FILES, train_or_test=key)
 
@@ -121,6 +121,7 @@ def create_rpunct_dataset(df):
     all_records = []
     with tqdm(range(df.shape[0])) as R:
         for i in R:
+            R.set_description("        * Labelling data instances")
             orig_row = df['text'][i]  # fetch a single row of text data
             records = create_record(orig_row)  # create a list enumerating each word in the row and its label: [...{id, word, label}...]
             all_records.extend(records)
