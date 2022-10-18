@@ -13,6 +13,7 @@ import pandas as pd
 import tensorflow_datasets as tfds
 from tqdm import tqdm
 
+VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
 PATH = './training/datasets/'
 NEWS_PATH = './training/datasets/news_data/'
 NO_OUTPUT_FILES = 5
@@ -63,23 +64,24 @@ def check_data_exists(data_type='news', train_or_test='train'):
 
 def collate_news_articles(start_date=NEWS_START_YEAR, end_date=NEWS_END_YEAR):
     news_datasets = [f'news_{date}.jsonl' for date in range(start_date, end_date + 1)]
-    summaries = []
+    articles = []
 
     for dataset_json in news_datasets:
         json_path = os.path.join(NEWS_PATH, dataset_json)
 
         with open(json_path, 'r') as fp:
             for line in fp:
-                summaries.append(json.loads(line)[SUMMARY_OR_BODY])
+                obj = json.loads(line)
+                articles.append(str(obj[SUMMARY_OR_BODY]))
 
     print(f"\n> Assembling news article {SUMMARY_OR_BODY[:-1]}ies (one line per {SUMMARY_OR_BODY}):")
 
     # train-test split
-    random.shuffle(summaries)
-    split = math.ceil(0.9 * len(summaries))
-    train = summaries[:split]
-    test = summaries[split:]
-    print(f"\t* Lines in total    : {len(summaries)}")
+    random.shuffle(articles)
+    split = math.ceil(0.9 * len(articles))
+    train = articles[:split]
+    test = articles[split:]
+    print(f"\t* Lines in total    : {len(articles)}")
     print(f"\t* Lines in train set: {len(train)}")
     print(f"\t* Lines in test set : {len(test)}")
 
@@ -144,7 +146,7 @@ def create_record(row):
     # remove punctuation of each word, and label it with a tag representing what punctuation it did have
     for obs in observation:
         text_obs = obs.lower()  # set lowercase
-        text_obs = pattern.sub('', text_obs)  # check whether word is the empty string
+        text_obs = pattern.sub('', text_obs)  # remove any non-alphanumeric characters
 
         # if word is the empty string, skip over this one
         if not text_obs:
