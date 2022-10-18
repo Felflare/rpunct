@@ -16,7 +16,7 @@ import tensorflow_datasets as tfds
 PATH = './training/datasets/'
 NEWS_PATH = './training/datasets/news_data/'
 NO_OUTPUT_FILES = 5
-SUMMARY_OR_BODY = 'body'
+SUMMARY_OR_BODY = 'summary'
 
 
 def e2e_data(data_type='news'):
