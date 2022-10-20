@@ -202,7 +202,7 @@ def create_training_samples(all_records, file_out_nm='train_data', num_splits=5,
         with tqdm(range(len(splits))) as S:
             for j in S:
                 a, b = splits[j][0], splits[j][1]
-                S.set_description(f"collecting observations")
+                S.set_description(f"                - Splitting data into chunks")
 
                 data_slice = full_data.iloc[a: b, ].values.tolist()  # collect the 500 word-label dicts between the specified indices
                 data_slice = np.pad(data_slice, [(0, 500 - len(data_slice)), (0, 0)], 'empty')
@@ -214,12 +214,21 @@ def create_training_samples(all_records, file_out_nm='train_data', num_splits=5,
         _round += 1
         random.shuffle(observations)
 
-        out = f'{file_out_nm}_{_round}.txt'
+        out = f'{file_out_nm}_{_round}.npy'
+        out_path = os.path.join(PATH, out)
+
+        # # reshaping the array from 3D matrice to 2D matrice.
+        # obs_reshaped = observations.reshape(observations.shape[0], -1)
+
+        # # saving array to txt file
+        # np.savetxt(out_path, obs_reshaped, delimiter=',', fmt='%s')
+        with open(out_path, 'wb') as f:
+            np.save(f, observations, allow_pickle=True)
+
         print(f"\t\t- Output data to file: {out}")
 
-        out_path = os.path.join(PATH, out)
-        with open(out_path, 'w') as fp2:
-            json.dump(observations.tolist(), fp2)
+        # with open(out_path, 'w') as fp2:
+        #     json.dump(observations.tolist(), fp2)
 
         del full_data
         del observations

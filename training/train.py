@@ -8,6 +8,7 @@ import os
 import json
 import math
 import pathlib
+import numpy as np
 import pandas as pd
 from simpletransformers.ner import NERModel
 import matplotlib.pyplot as plt
@@ -104,7 +105,7 @@ def load_datasets(data_type='reviews', train_or_test='train'):
     """
     # find training data files
     print(f"\n> Loading data from source: {data_type.upper()}")
-    data_file_pattern = f'{data_type}_{train_or_test}_1.txt'
+    data_file_pattern = f'{data_type}_{train_or_test}_*.npy'
     dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
 
     if len(dataset_paths) == 0:
@@ -113,10 +114,10 @@ def load_datasets(data_type='reviews', train_or_test='train'):
     # collate these into a single data object
     token_data = []
     for d_set in dataset_paths:
-        with open(d_set, 'r') as fp:
-            data_slice = json.load(fp)
+        with open(d_set, 'rb') as f:
+            data_slice = np.load(f, allow_pickle=True)
 
-        token_data.extend(data_slice)
+        token_data.extend(data_slice.tolist())
         del data_slice
 
     return token_data
