@@ -9,6 +9,7 @@ import json
 import math
 import random
 import pathlib
+import numpy as np
 import pandas as pd
 import tensorflow_datasets as tfds
 from tqdm import tqdm
@@ -18,8 +19,8 @@ PATH = './training/datasets/'
 NEWS_PATH = './training/datasets/news_data/'
 NO_OUTPUT_FILES = 5
 SUMMARY_OR_BODY = 'body'
-NEWS_START_YEAR = 2022
-NEWS_END_YEAR = 2022
+NEWS_START_YEAR = 2016
+NEWS_END_YEAR = 2017
 
 
 def e2e_data(data_type='news'):
@@ -127,6 +128,7 @@ def create_rpunct_dataset(df):
             orig_row = df['text'][i]  # fetch a single row of text data
             records = create_record(orig_row)  # create a list enumerating each word in the row and its label: [...{id, word, label}...]
             all_records.extend(records)
+            del orig_row
 
     # output the list of all {word, label} dicts
     return all_records
@@ -186,17 +188,27 @@ def create_training_samples(all_records, file_out_nm='train_data', num_splits=5,
     # segment data into `num_splits` chunks
     while _round < num_splits:
         # locate the `_round`th chunk of dicts
-        all_records = all_records[size * _round: size * (_round + 1)]
+        records = all_records[size * _round: size * (_round + 1)]
 
         # break main chunk of dicts (at this loop round) into smaller chunks of 500 words (`splits` = start/end indices of small chunks)
-        splits = create_tokenized_obs(all_records)
-        full_data = pd.DataFrame(all_records)
+        splits = create_tokenized_obs(records)
+        full_data = pd.DataFrame(records)
+        del records
 
         # cycle through the start/end chunk index tuples
-        observations = []
-        for i in splits:
-            data_slice = full_data.iloc[i[0]:i[1], ]  # collect the 500 word-label dicts between the specified indices
-            observations.append(data_slice.values.tolist())  # add each list of 500 dicts to the dataset
+        shape = (len(splits), 500, 3)
+        observations = np.empty(shape=shape, dtype=object)
+
+        with tqdm(range(len(splits))) as S:
+            for j in S:
+                a, b = splits[j][0], splits[j][1]
+                S.set_description(f"collecting observations")
+
+                data_slice = full_data.iloc[a: b, ].values.tolist()  # collect the 500 word-label dicts between the specified indices
+                data_slice = np.pad(data_slice, [(0, 500 - len(data_slice)), (0, 0)], 'empty')
+
+                observations[j] = data_slice  # add each list of 500 dicts to the dataset
+                del data_slice
 
         # shuffle dataset of 500 word-label dicts and save to a txt file
         _round += 1
@@ -207,7 +219,10 @@ def create_training_samples(all_records, file_out_nm='train_data', num_splits=5,
 
         out_path = os.path.join(PATH, out)
         with open(out_path, 'w') as fp2:
-            json.dump(observations, fp2)
+            json.dump(observations.tolist(), fp2)
+
+        del full_data
+        del observations
 
 
 def create_tokenized_obs(input_list, num_toks=500, offset=250):

@@ -104,7 +104,7 @@ def load_datasets(data_type='reviews', train_or_test='train'):
     """
     # find training data files
     print(f"\n> Loading data from source: {data_type.upper()}")
-    data_file_pattern = f'{data_type}_{train_or_test}_*.txt'
+    data_file_pattern = f'{data_type}_{train_or_test}_1.txt'
     dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
 
     if len(dataset_paths) == 0:
