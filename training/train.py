@@ -112,12 +112,13 @@ def load_datasets(data_type='reviews', train_or_test='train'):
         raise FileNotFoundError("No dataset files found. You may have forgotten to run the `prep_data.py` preparation process on the dataset you want to use.")
 
     # collate these into a single data object
-    token_data = []
+    token_data = np.empty(shape=(0, 500, 3), dtype=object)
+
     for d_set in dataset_paths:
         with open(d_set, 'rb') as f:
             data_slice = np.load(f, allow_pickle=True)
 
-        token_data.extend(data_slice.tolist())
+        token_data = np.append(token_data, data_slice, axis=0)
         del data_slice
 
     return token_data
@@ -180,7 +181,7 @@ def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_
         - validation (bool): Toggle to exploit validation set during training (validates performance every 5000 steps).
     """
     # Create a NERModel
-    print("\t* Building NER model")
+    print("\t* Building NER model", end='\n\n')
     model = NERModel(
         "bert",
         "bert-base-uncased",
@@ -201,8 +202,8 @@ def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_
     # Train the model
     train_data_path = os.path.join(PATH, train_data_txt)
     val_data_path = os.path.join(PATH, val_data_txt)
-    print(f"\t* Training model on dataset: {train_data_path}")
-    print(f"\t* Validate model during training: {validation}")
+    print(f"\n\t* Training model on dataset: {train_data_path}")
+    print(f"\t* Validate model during training: {validation}", end='\n\n')
 
     steps, tr_details = model.train_model(train_data_path, eval_data=val_data_path)
 
