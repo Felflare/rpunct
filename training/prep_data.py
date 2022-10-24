@@ -11,17 +11,11 @@ import random
 import pathlib
 import numpy as np
 import pandas as pd
-import tensorflow_datasets as tfds
 from tqdm import tqdm
+import tensorflow_datasets as tfds
 
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
-
-PATH_ROOT = './training/datasets/'
-PATH_DATA_ORIG = 'news_data/'
-PATH_DATA_RANGE = '2014-2022/'
-PATH = PATH_ROOT + PATH_DATA_RANGE
-NEWS_PATH = PATH_ROOT + PATH_DATA_ORIG
-
+PATH = './training/datasets/'
 NO_OUTPUT_FILES = 5
 SUMMARY_OR_BODY = 'body'
 
@@ -34,17 +28,17 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022'):
     if data_type == 'news':
         # collect data from each JSONL file enumerating all BBC News articles for each year 2014-2022
         print(f"\n> Preparing data from source: BBC News ({SUMMARY_OR_BODY})")
-        collate_news_articles(int(start_year), int(end_year))
+        dataset_path = collate_news_articles(int(start_year), int(end_year))
     else:  # data_type == 'reviews'
         # save training/testing datasets from tensorflow to local csv files
         print("\n> Preparing data from source: Yelp reviews")
-        download_reviews()
+        dataset_path = download_reviews()
 
     for key in ['train', 'test']:
         print(f"\n> Generating dataset: {key.upper()}")
 
         # load in train/test data
-        data_split_path = os.path.join(PATH, f'{key}_{data_type}.csv')
+        data_split_path = os.path.join(dataset_path, f'{key}_{data_type}.csv')
         data_split = pd.read_csv(data_split_path)
         data_split.dropna(inplace=True)
         data_split.reset_index(drop=True, inplace=True)
@@ -56,16 +50,17 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022'):
         # split data into chunks for model
         print("\t* Generating data samples")
         output_file = f"{data_type}_{key}"
-        create_training_samples(words_and_labels, output_file, num_splits=NO_OUTPUT_FILES, train_or_test=key)
+        create_training_samples(words_and_labels, output_file, file_out_path=dataset_path, num_splits=NO_OUTPUT_FILES, train_or_test=key)
         del words_and_labels
 
     print("\n> Data generation complete", end='\n\n')
 
 
-def check_data_exists(data_type='news', train_or_test='train'):
+def check_data_exists(data_type='news-2018-2022', train_or_test='train'):
     # check whether the training data has been created or not yet
+    data_dir = os.path.join(PATH, data_type)
     data_file_pattern = f'{data_type}_{train_or_test}_*.npy'
-    dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
+    dataset_paths = list(pathlib.Path(data_dir).glob(data_file_pattern))
     data_files_exist = len(dataset_paths) == NO_OUTPUT_FILES
     print(f"\n> Required data files found: {data_files_exist} ({data_file_pattern})")
 
@@ -78,7 +73,7 @@ def collate_news_articles(start_date, end_date):
     articles = []
 
     for dataset_json in news_datasets:
-        json_path = os.path.join(NEWS_PATH, dataset_json)
+        json_path = os.path.join(PATH, 'news_data/', dataset_json)
 
         with open(json_path, 'r') as fp:
             for line in fp:
@@ -97,16 +92,20 @@ def collate_news_articles(start_date, end_date):
     del articles
 
     # save train/test data to csv
+    dataset_path = os.path.join(PATH, f'news-{start_date}-{end_date}')
+    pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
+
     train = pd.DataFrame(train, columns=['text'])
-    csv_path_train = os.path.join(PATH, 'train_news.csv')
+    csv_path_train = os.path.join(dataset_path, 'train_news.csv')
     train.to_csv(csv_path_train, index=False)
+    del train
 
     test = pd.DataFrame(test, columns=['text'])
-    csv_path_test = os.path.join(PATH, 'test_news.csv')
+    csv_path_test = os.path.join(dataset_path, 'test_news.csv')
     test.to_csv(csv_path_test, index=False)
-
-    del train
     del test
+
+    return dataset_path
 
 
 def download_reviews():
@@ -127,11 +126,16 @@ def download_reviews():
     test = test.drop(columns=['label'])
 
     # save train/test data to csv
-    csv_path_train = os.path.join(PATH, 'train_reviews.csv')
+    dataset_path = os.path.join(PATH, 'reviews')
+    pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
+
+    csv_path_train = os.path.join(dataset_path, 'train_reviews.csv')
     train.to_csv(csv_path_train, index=False)
 
-    csv_path_test = os.path.join(PATH, 'test_reviews.csv')
+    csv_path_test = os.path.join(dataset_path, 'test_reviews.csv')
     test.to_csv(csv_path_test, index=False)
+
+    return dataset_path
 
 
 def create_rpunct_dataset(df):
@@ -189,7 +193,7 @@ def create_record(row):
     return new_obs
 
 
-def create_training_samples(all_records, file_out_nm='train_data', num_splits=5, train_or_test='train'):
+def create_training_samples(all_records, file_out_nm='train_data', file_out_path=PATH, num_splits=5, train_or_test='train'):
     """
     Given a looong list of tokens, splits them into 500 token chunks
     thus creating observations. This is for fine-tuning with simpletransformers
@@ -230,7 +234,7 @@ def create_training_samples(all_records, file_out_nm='train_data', num_splits=5,
         random.shuffle(observations)
 
         out = f'{file_out_nm}_{_round}.npy'
-        out_path = os.path.join(PATH, out)
+        out_path = os.path.join(file_out_path, out)
 
         with open(out_path, 'wb') as f:
             np.save(f, observations, allow_pickle=True)

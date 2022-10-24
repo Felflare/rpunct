@@ -52,9 +52,9 @@ if __name__ == "__main__":
         '--data',
         metavar='DATA',
         type=str,
-        choices=['news', 'reviews'],
-        default='news',
-        help="Specify the dataset to be used to test the model: BBC News (`news`) or Yelp reviews (`reviews`) - default is BBC News."
+        choices=['reviews'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
+        default='news-2014-2022',
+        help="Specify the (path to the) dataset to be used to test the model: BBC News (`news-startyr-endyr`) or Yelp reviews (`reviews`) - default is BBC News 2014-2022."
     )
 
     train_parser.add_argument(
@@ -199,7 +199,11 @@ if __name__ == "__main__":
         # run data preparation pipeline if dataset does not exist
         dataset_exists = check_data_exists(data_type=args.data, train_or_test=args.stage)
         if not dataset_exists:
-            e2e_data(args.data)
+            if args.data != 'reviews':
+                data_type, data_start, data_end = args.data.split('-')
+                e2e_data(data_type, data_start, data_end)
+            else:
+                e2e_data(args.data)
 
         if args.stage == 'train':
             # run pipeline to build and train language model
