@@ -197,18 +197,20 @@ if __name__ == "__main__":
 
     elif args.stage in ['train', 'test']:
         # run data preparation pipeline if dataset does not exist
-        dataset_exists = check_data_exists(data_type=args.data, train_or_test=args.stage)
+        if args.data[:5] == 'news-':
+            data_type, data_start, data_end = args.data.split('-')
+        else:
+            data_type, data_start, data_end = args.data, '', ''
+
+        dataset_exists = check_data_exists(data_type=data_type, train_or_test=args.stage)
+
         if not dataset_exists:
-            if args.data != 'reviews':
-                data_type, data_start, data_end = args.data.split('-')
-                e2e_data(data_type, data_start, data_end)
-            else:
-                e2e_data(args.data)
+            e2e_data(data_type, data_start, data_end)
 
         if args.stage == 'train':
             # run pipeline to build and train language model
             e2e_train(
-                data_type=args.data,
+                data_source=args.data,
                 use_cuda=args.cuda,
                 validation=args.val,
                 dataset_stats=args.stats,

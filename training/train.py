@@ -19,24 +19,25 @@ sns.set_theme(style="darkgrid")
 sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
-PATH_ROOT = './training/datasets/'
-PATH_DATA_RANGE = '2014-2022/'
-PATH = PATH_ROOT + PATH_DATA_RANGE
+PATH = './training/datasets/'
 
 
-def e2e_train(data_type='reviews', use_cuda=True, validation=False, dataset_stats=False, training_plot=False, epochs=3):
+def e2e_train(data_source='reviews', use_cuda=True, validation=False, dataset_stats=False, training_plot=False, epochs=3):
     """
     Training pipeline to format training dataset, build model, and train it.
     """
-    if data_type not in ['news', 'reviews']:
-        raise ValueError('Unknown data source')
-
     # generate correctly formatted training data
-    prepare_data(data_type=data_type, validation=validation, print_stats=dataset_stats)
+    print(f"\n> Loading data from source: {data_source}")
+    prepare_data(source=data_source, validation=validation, print_stats=dataset_stats)
 
     # create a simpletransformer model and use data to train it
     print("\n> Building & training model")
-    model, steps, tr_details = train_model(use_cuda=use_cuda, validation=validation, epochs=epochs)
+    model, steps, tr_details = train_model(
+        data_dir=data_source,
+        use_cuda=use_cuda,
+        validation=validation,
+        epochs=epochs
+    )
     print(f"\n\t* Steps: {steps}; Train details: {tr_details}")
 
     # plot the progression/convergence over training/validation
@@ -48,15 +49,16 @@ def e2e_train(data_type='reviews', use_cuda=True, validation=False, dataset_stat
     return model
 
 
-def prepare_data(data_type='reviews', train_or_test='train', validation=True, print_stats=False):
+def prepare_data(source='reviews', train_or_test='train', validation=True, print_stats=False):
     """
     Prepares data from Original text into Connnl formatted datasets ready for training
     In addition constraints label space to only labels we care about
     """
     # load formatted data generated through `prep_data.py`
-    token_data = load_datasets(data_type, train_or_test)
+    token_data = load_datasets(source, train_or_test)
 
     # remove any invalid labels
+    print("\t* Cleaning labels")
     clean_up_labels(token_data, VALID_LABELS)
 
     # split train/test datasets, convert each to a text file, and print dataset stats if desired
@@ -67,11 +69,11 @@ def prepare_data(data_type='reviews', train_or_test='train', validation=True, pr
 
         val_set = token_data[split:].copy()
         val_output_txt='rpunct_val_set.txt'
-        val_set_path = os.path.join(PATH, val_output_txt)
+        val_set_path = os.path.join(PATH, source, val_output_txt)
 
         # format validaton set as Connl NER txt file
-        create_text_file(val_set, val_set_path)
         print(f"\t* Validation dataset shape: ({len(val_set)}, {len(val_set[0])}, {len(val_set[0][0])})")
+        create_text_file(val_set, val_set_path)
 
         # print label distribution in validation set
         if print_stats:
@@ -81,11 +83,12 @@ def prepare_data(data_type='reviews', train_or_test='train', validation=True, pr
     else:
         train_set = token_data.copy()
 
+    print(f"\t* {train_or_test.capitalize()}ing dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
+
     # format training set as Connl NER txt file
     output_txt = f'rpunct_{train_or_test}_set.txt'
-    train_set_path = os.path.join(PATH, output_txt)
+    train_set_path = os.path.join(PATH, source, output_txt)
     create_text_file(train_set, train_set_path)
-    print(f"\t* {train_or_test.capitalize()}ing dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
 
     # print label distribution in training set
     if print_stats:
@@ -101,28 +104,36 @@ def prepare_data(data_type='reviews', train_or_test='train', validation=True, pr
             print(val_stats)
 
 
-def load_datasets(data_type='reviews', train_or_test='train'):
+def load_datasets(data_dir='reviews', train_or_test='train'):
     """
     First, locate the data files generated from running `prep_data.py`.
     Then, given this list of data paths return a single data object containing all data slices.
     """
-    # find training data files
-    print(f"\n> Loading data from source: {data_type.upper()}")
-    data_file_pattern = f'{data_type}_{train_or_test}_*.npy'
-    dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
+    # convert from dir name to file name
+    if data_dir[:5] == 'news-':
+        data_type = data_dir[:4]
+    else:
+        data_type = data_dir
 
-    if len(dataset_paths) == 0:
+    # find training data files
+    path_to_data = pathlib.Path(os.path.join(PATH, data_dir))
+    data_file_pattern = f'{data_type}_{train_or_test}_*.npy'
+    datasets = list(path_to_data.glob(data_file_pattern))
+
+    if len(datasets) == 0:
         raise FileNotFoundError("No dataset files found. You may have forgotten to run the `prep_data.py` preparation process on the dataset you want to use.")
 
     # collate these into a single data object
     token_data = np.empty(shape=(0, 500, 3), dtype=object)
 
-    for d_set in dataset_paths:
-        with open(d_set, 'rb') as f:
-            data_slice = np.load(f, allow_pickle=True)
+    with tqdm(datasets) as D:
+        for dataset in D:
+            D.set_description("        * Reading in data")
+            with open(dataset, 'rb') as f:
+                data_slice = np.load(f, allow_pickle=True)
 
-        token_data = np.append(token_data, data_slice, axis=0)
-        del data_slice
+            token_data = np.append(token_data, data_slice, axis=0)
+            del data_slice
 
     return token_data
 
@@ -174,7 +185,7 @@ def get_label_stats(dataset):
     return calcs
 
 
-def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_set.txt', use_cuda=True, validation=True, epochs=3):
+def train_model(data_dir='reviews', train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_set.txt', use_cuda=True, validation=True, epochs=3):
     """
     Trains simpletransformers model.
     Args:
@@ -203,8 +214,8 @@ def train_model(train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_
     )
 
     # Train the model
-    train_data_path = os.path.join(PATH, train_data_txt)
-    val_data_path = os.path.join(PATH, val_data_txt)
+    train_data_path = os.path.join(PATH, data_dir, train_data_txt)
+    val_data_path = os.path.join(PATH, data_dir, val_data_txt)
     print(f"\n\t* Training model on dataset: {train_data_path}")
     print(f"\t* Validate model during training: {validation}", end='\n\n')
 

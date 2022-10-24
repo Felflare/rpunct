@@ -56,9 +56,13 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022'):
     print("\n> Data generation complete", end='\n\n')
 
 
-def check_data_exists(data_type='news-2018-2022', train_or_test='train'):
+def check_data_exists(data_type='news', train_or_test='train', start_date='2014', end_date='2022'):
     # check whether the training data has been created or not yet
-    data_dir = os.path.join(PATH, data_type)
+    if data_type == 'news':
+        data_dir = os.path.join(PATH, f'news-{start_date}-{end_date}')
+    else:
+        data_dir = os.path.join(PATH, data_type)
+
     data_file_pattern = f'{data_type}_{train_or_test}_*.npy'
     dataset_paths = list(pathlib.Path(data_dir).glob(data_file_pattern))
     data_files_exist = len(dataset_paths) == NO_OUTPUT_FILES
