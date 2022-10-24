@@ -26,6 +26,26 @@ if __name__ == "__main__":
         help="Specify the dataset to be used to test the model: BBC News (`news`) or Yelp reviews (`reviews`) - default is BBC News."
     )
 
+    data_parser.add_argument(
+        '-s',
+        '--start',
+        metavar='YEAR',
+        type=str,
+        choices=[str(year) for year in range(2014, 2023)],
+        default='2014',
+        help="Specify the start year of the range of news articles you want to input as the dataset - default is 2014."
+    )
+
+    data_parser.add_argument(
+        '-e',
+        '--end',
+        metavar='YEAR',
+        type=str,
+        choices=[str(year) for year in range(2014, 2023)],
+        default='2022',
+        help="Specify the end year of the range of news articles you want to input as the dataset - default is 2022."
+    )
+
     # Training arguments
     train_parser.add_argument(
         '-d',
@@ -170,7 +190,10 @@ if __name__ == "__main__":
     # Run the pipeline for the specifc ML processing stage selected
     if args.stage == 'data':
         # run data preparation pipeline
-        e2e_data(args.data)
+        if args.end < args.start:
+            raise ValueError("End year of news data range must not be earlier than start year")
+        else:
+            e2e_data(args.data, args.start, args.end)
 
     elif args.stage in ['train', 'test']:
         # run data preparation pipeline if dataset does not exist

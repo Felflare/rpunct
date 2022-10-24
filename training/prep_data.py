@@ -19,11 +19,9 @@ PATH = './training/datasets/'
 NEWS_PATH = './training/datasets/news_data/'
 NO_OUTPUT_FILES = 5
 SUMMARY_OR_BODY = 'body'
-NEWS_START_YEAR = 2021
-NEWS_END_YEAR = 2022
 
 
-def e2e_data(data_type='news'):
+def e2e_data(data_type='news', start_year='2014', end_year='2022'):
     """
     Full pipeline for compiling and formatting training data from BBC News articles or Yelp reviews
     """
@@ -31,7 +29,7 @@ def e2e_data(data_type='news'):
     if data_type == 'news':
         # collect data from each JSONL file enumerating all BBC News articles for each year 2014-2022
         print(f"\n> Preparing data from source: BBC News ({SUMMARY_OR_BODY})")
-        collate_news_articles()
+        collate_news_articles(int(start_year), int(end_year))
     else:  # data_type == 'reviews'
         # save training/testing datasets from tensorflow to local csv files
         print("\n> Preparing data from source: Yelp reviews")
@@ -61,7 +59,7 @@ def e2e_data(data_type='news'):
 
 def check_data_exists(data_type='news', train_or_test='train'):
     # check whether the training data has been created or not yet
-    data_file_pattern = f'{data_type}_{train_or_test}_*.txt'
+    data_file_pattern = f'{data_type}_{train_or_test}_*.npy'
     dataset_paths = list(pathlib.Path(PATH).glob(data_file_pattern))
     data_files_exist = len(dataset_paths) == NO_OUTPUT_FILES
     print(f"\n> Required data files found: {data_files_exist} ({data_file_pattern})")
@@ -69,7 +67,7 @@ def check_data_exists(data_type='news', train_or_test='train'):
     return data_files_exist
 
 
-def collate_news_articles(start_date=NEWS_START_YEAR, end_date=NEWS_END_YEAR):
+def collate_news_articles(start_date, end_date):
     print(f"\n> Assembling news article {SUMMARY_OR_BODY[:-1]}ies (one line per {SUMMARY_OR_BODY}):")
     news_datasets = [f'news_{date}.jsonl' for date in range(start_date, end_date + 1)]
     articles = []
