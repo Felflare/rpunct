@@ -114,9 +114,9 @@ if __name__ == "__main__":
         '--data',
         metavar='DATA',
         type=str,
-        choices=['news', 'reviews'],
-        default='news',
-        help="Specify the dataset to be used to test the model: BBC News (`news`) or Yelp reviews (`reviews`) - default is BBC News."
+        choices=['reviews'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
+        default='news-2014-2022',
+        help="Specify the (path to the) dataset to be used to test the model: BBC News (`news-startyr-endyr`) or Yelp reviews (`reviews`) - default is BBC News 2014-2022."
     )
 
     test_parser.add_argument(
@@ -226,7 +226,7 @@ if __name__ == "__main__":
             # run model testing pipeline
             e2e_test(
                 args.models,
-                data_type=args.data,
+                data_source=args.data,
                 use_cuda=args.cuda,
                 print_stats=args.stats,
                 output_file=args.output

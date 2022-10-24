@@ -66,7 +66,7 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
     data_file_pattern = f'{data_type}_{train_or_test}_*.npy'
     dataset_paths = list(pathlib.Path(data_dir).glob(data_file_pattern))
     data_files_exist = len(dataset_paths) == NO_OUTPUT_FILES
-    print(f"\n> Required data files found: {data_files_exist} ({data_file_pattern})")
+    print(f"\n> Required data files found at '{data_dir}/{data_file_pattern}'? : {data_files_exist}")
 
     return data_files_exist
 

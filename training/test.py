@@ -21,19 +21,16 @@ sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
 
-PATH_ROOT = './training/datasets/'
-PATH_DATA_RANGE = '2014-2022/'
-DATA_PATH = PATH_ROOT + PATH_DATA_RANGE
+PATH = './training/datasets/'
 RESULTS_PATH = './tests/'
 
 
-def e2e_test(models, data_type='reviews', use_cuda=True, print_stats=False, output_file='model_performance.png'):
+def e2e_test(models, data_source='reviews', use_cuda=True, print_stats=False, output_file='model_performance.png'):
     """
     Testing model performance after full training process has been completed.
     """
     # format testing data into txt
-    test_data_txt = 'rpunct_test_set.txt'
-    prepare_data(data_type=data_type, print_stats=print_stats, train_or_test='test', validation=False)
+    prepare_data(source=data_source, print_stats=print_stats, train_or_test='test', validation=False)
     all_metrics = []
     count = 1
 
@@ -50,29 +47,14 @@ def e2e_test(models, data_type='reviews', use_cuda=True, print_stats=False, outp
         count += 1
 
         # test model after its been fully trained
-        metrics, outputs, predictions = test_model(model, test_data_txt)
+        test_data_txt = os.path.join(PATH, data_source, 'rpunct_test_set.txt')
+        metrics, outputs, predictions = model.eval_model(test_data_txt, output_dir=RESULTS_PATH)
         all_metrics.append(metrics)
+        print(f"\n\t* Results: {metrics}")
 
-    compare_models(all_metrics, models, out_png=output_file, data_type=data_type)
+    compare_models(all_metrics, models, out_png=output_file, data_type=data_source)
 
     print("\n> Model testing complete", end='\n\n')
-
-
-def test_model(model, in_txt):
-    """
-    Use prepaered test dataset in txt file `in_txt` to test the optimised model `model`
-    and write the results to the output directory `RESULTS_PATH`.
-    Args:
-        - model (str): Location where optimised parameterisation of model is stored.
-        - in_txt (str): File name of testing dataset (within datasets directory).
-    """
-    # load data and test model
-    test_data_path = os.path.join(DATA_PATH, in_txt)
-
-    result, model_outputs, wrong_preds = model.eval_model(test_data_path, output_dir=RESULTS_PATH)
-    print(f"\n\t* Results: {result}")
-
-    return result, model_outputs, wrong_preds
 
 
 def compare_models(results, model_locations, out_png='model_performance.png', data_type='news'):
