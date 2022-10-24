@@ -19,7 +19,7 @@ PATH = './training/datasets/'
 NEWS_PATH = './training/datasets/news_data/'
 NO_OUTPUT_FILES = 5
 SUMMARY_OR_BODY = 'body'
-NEWS_START_YEAR = 2014
+NEWS_START_YEAR = 2021
 NEWS_END_YEAR = 2022
 
 
@@ -41,6 +41,7 @@ def e2e_data(data_type='news'):
         print(f"\n> Generating dataset: {key.upper()}")
 
         # load in train/test data
+        print(f'reading {key} set')
         data_split_path = os.path.join(PATH, f'{key}_{data_type}.csv')
         data_split = pd.read_csv(data_split_path)
         data_split.dropna(inplace=True)
@@ -94,17 +95,20 @@ def collate_news_articles(start_date=NEWS_START_YEAR, end_date=NEWS_END_YEAR):
     del articles
 
     # save train/test data to csv
+    print('saving train set')
     train = pd.DataFrame(train, columns=['text'])
     # train.dropna(inplace=True)
     # train.reset_index(drop=True, inplace=True)
     csv_path_train = os.path.join(PATH, 'train_news.csv')
     train.to_csv(csv_path_train, index=False)
 
+    print('saving test set')
     test = pd.DataFrame(test, columns=['text'])
     # test.dropna(inplace=True)
     # test.reset_index(drop=True, inplace=True)
     csv_path_test = os.path.join(PATH, 'test_news.csv')
     test.to_csv(csv_path_test, index=False)
+    print('datasets both saved')
 
     del train
     del test
