@@ -225,7 +225,7 @@ def create_training_samples(all_records, file_out_nm='train_data', file_out_path
         with tqdm(range(len(splits))) as S:
             for j in S:
                 a, b = splits[j][0], splits[j][1]
-                S.set_description(f"                - Splitting data chunk {_round}")
+                S.set_description(f"                - Splitting data chunk {_round + 1}")
 
                 data_slice = records.iloc[a: b, ].values.tolist()  # collect the 500 word-label dicts between the specified indices
                 data_slice = np.pad(data_slice, [(0, 500 - len(data_slice)), (0, 0)], 'empty')

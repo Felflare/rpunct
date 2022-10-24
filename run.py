@@ -202,7 +202,12 @@ if __name__ == "__main__":
         else:
             data_type, data_start, data_end = args.data, '', ''
 
-        dataset_exists = check_data_exists(data_type=data_type, train_or_test=args.stage)
+        dataset_exists = check_data_exists(
+            data_type=data_type,
+            train_or_test=args.stage,
+            start_date=data_start,
+            end_date=data_end
+        )
 
         if not dataset_exists:
             e2e_data(data_type, data_start, data_end)
