@@ -19,8 +19,8 @@ PATH = './training/datasets/'
 NEWS_PATH = './training/datasets/news_data/'
 NO_OUTPUT_FILES = 5
 SUMMARY_OR_BODY = 'body'
-NEWS_START_YEAR = 2016
-NEWS_END_YEAR = 2017
+NEWS_START_YEAR = 2014
+NEWS_END_YEAR = 2022
 
 
 def e2e_data(data_type='news'):
@@ -31,24 +31,30 @@ def e2e_data(data_type='news'):
     if data_type == 'news':
         # collect data from each JSONL file enumerating all BBC News articles for each year 2014-2022
         print(f"\n> Preparing data from source: BBC News ({SUMMARY_OR_BODY})")
-        all_data = collate_news_articles()
+        collate_news_articles()
     else:  # data_type == 'reviews'
         # save training/testing datasets from tensorflow to local csv files
         print("\n> Preparing data from source: Yelp reviews")
-        all_data = download_reviews()
+        download_reviews()
 
     for key in ['train', 'test']:
         print(f"\n> Generating dataset: {key.upper()}")
 
+        # load in train/test data
+        data_split_path = os.path.join(PATH, f'{key}_{data_type}.csv')
+        data_split = pd.read_csv(data_split_path)
+        data_split.dropna(inplace=True)
+        data_split.reset_index(drop=True, inplace=True)
+
         # constuct df of text and labels (punctuation tag per word)
-        # print("\t* Labelling data instances", end='\n\n')
-        data_split = all_data[key]
         words_and_labels = create_rpunct_dataset(data_split)
+        del data_split
 
         # split data into chunks for model
         print("\t* Generating data samples")
         output_file = f"{data_type}_{key}"
         create_training_samples(words_and_labels, output_file, num_splits=NO_OUTPUT_FILES, train_or_test=key)
+        del words_and_labels
 
     print("\n> Data generation complete", end='\n\n')
 
@@ -64,6 +70,7 @@ def check_data_exists(data_type='news', train_or_test='train'):
 
 
 def collate_news_articles(start_date=NEWS_START_YEAR, end_date=NEWS_END_YEAR):
+    print(f"\n> Assembling news article {SUMMARY_OR_BODY[:-1]}ies (one line per {SUMMARY_OR_BODY}):")
     news_datasets = [f'news_{date}.jsonl' for date in range(start_date, end_date + 1)]
     articles = []
 
@@ -73,26 +80,40 @@ def collate_news_articles(start_date=NEWS_START_YEAR, end_date=NEWS_END_YEAR):
         with open(json_path, 'r') as fp:
             for line in fp:
                 obj = json.loads(line)
-                articles.append(str(obj[SUMMARY_OR_BODY]))
-
-    print(f"\n> Assembling news article {SUMMARY_OR_BODY[:-1]}ies (one line per {SUMMARY_OR_BODY}):")
+                articles.append(obj[SUMMARY_OR_BODY])
+                del obj
 
     # train-test split
     random.shuffle(articles)
     split = math.ceil(0.9 * len(articles))
     train = articles[:split]
     test = articles[split:]
-    print(f"\t* Lines in total    : {len(articles)}")
-    print(f"\t* Lines in train set: {len(train)}")
-    print(f"\t* Lines in test set : {len(test)}")
+    print(f"\t* Articles in total    : {len(articles)}")
+    print(f"\t* Articles in train set: {len(train)}")
+    print(f"\t* Articles in test set : {len(test)}")
+    del articles
+
+    # save train/test data to csv
+    train = pd.DataFrame(train, columns=['text'])
+    # train.dropna(inplace=True)
+    # train.reset_index(drop=True, inplace=True)
+    csv_path_train = os.path.join(PATH, 'train_news.csv')
+    train.to_csv(csv_path_train, index=False)
+
+    test = pd.DataFrame(test, columns=['text'])
+    # test.dropna(inplace=True)
+    # test.reset_index(drop=True, inplace=True)
+    csv_path_test = os.path.join(PATH, 'test_news.csv')
+    test.to_csv(csv_path_test, index=False)
+
+    del train
+    del test
 
     # compile into single dataframe
-    data = {
-        'train': pd.DataFrame(train, columns=['text']),
-        'test': pd.DataFrame(test, columns=['text'])
-    }
-
-    return data
+    # return {
+    #     'train': pd.DataFrame(train, columns=['text']),
+    #     'test': pd.DataFrame(test, columns=['text'])
+    # }
 
 
 def download_reviews():
@@ -108,27 +129,33 @@ def download_reviews():
 
     # filter to only positive examples
     train = train[train['label'] == 1].reset_index(drop=True)
+    train = train.drop(columns=['label'])
     test = test[test['label'] == 1].reset_index(drop=True)
+    test = test.drop(columns=['label'])
 
-    # compile into single dataframe
-    data = {
-            'train': train,
-            'test': test
-    }
+    # save train/test data to csv
+    csv_path_train = os.path.join(PATH, 'train_reviews.csv')
+    train.to_csv(csv_path_train, index=False)
 
-    return data
+    csv_path_test = os.path.join(PATH, 'test_reviews.csv')
+    test.to_csv(csv_path_test, index=False)
+
+    # # compile into single dataframe
+    # return {
+    #         'train': train,
+    #         'test': test
+    # }
 
 
 def create_rpunct_dataset(df):
     # constuct df of text and labels (punctuation tag per word)
     all_records = []
-    with tqdm(range(df.shape[0])) as R:
-        for i in R:
-            R.set_description("        * Labelling data instances")
-            orig_row = df['text'][i]  # fetch a single row of text data
-            records = create_record(orig_row)  # create a list enumerating each word in the row and its label: [...{id, word, label}...]
+    with tqdm(df['text']) as T:
+        for article in T:
+            T.set_description("        * Labelling data instances")
+            records = create_record(article)  # create a list enumerating each word in a single article and its label: [...{id, word, label}...]
             all_records.extend(records)
-            del orig_row
+            del records
 
     # output the list of all {word, label} dicts
     return all_records
@@ -169,6 +196,9 @@ def create_record(row):
         # add the word and its label to the dataset
         new_obs.append({'sentence_id': 0, 'words': text_obs, 'labels': new_lab})
 
+        del text_obs
+        del new_lab
+
     return new_obs
 
 
@@ -192,19 +222,17 @@ def create_training_samples(all_records, file_out_nm='train_data', num_splits=5,
 
         # break main chunk of dicts (at this loop round) into smaller chunks of 500 words (`splits` = start/end indices of small chunks)
         splits = create_tokenized_obs(records)
-        full_data = pd.DataFrame(records)
-        del records
+        records = pd.DataFrame(records)
 
         # cycle through the start/end chunk index tuples
-        shape = (len(splits), 500, 3)
-        observations = np.empty(shape=shape, dtype=object)
+        observations = np.empty(shape=(len(splits), 500, 3), dtype=object)
 
         with tqdm(range(len(splits))) as S:
             for j in S:
                 a, b = splits[j][0], splits[j][1]
-                S.set_description(f"                - Splitting data into chunks")
+                S.set_description(f"                - Splitting data chunk {_round}")
 
-                data_slice = full_data.iloc[a: b, ].values.tolist()  # collect the 500 word-label dicts between the specified indices
+                data_slice = records.iloc[a: b, ].values.tolist()  # collect the 500 word-label dicts between the specified indices
                 data_slice = np.pad(data_slice, [(0, 500 - len(data_slice)), (0, 0)], 'empty')
 
                 observations[j] = data_slice  # add each list of 500 dicts to the dataset
@@ -217,20 +245,12 @@ def create_training_samples(all_records, file_out_nm='train_data', num_splits=5,
         out = f'{file_out_nm}_{_round}.npy'
         out_path = os.path.join(PATH, out)
 
-        # # reshaping the array from 3D matrice to 2D matrice.
-        # obs_reshaped = observations.reshape(observations.shape[0], -1)
-
-        # # saving array to txt file
-        # np.savetxt(out_path, obs_reshaped, delimiter=',', fmt='%s')
         with open(out_path, 'wb') as f:
             np.save(f, observations, allow_pickle=True)
 
         print(f"\t\t- Output data to file: {out}")
 
-        # with open(out_path, 'w') as fp2:
-        #     json.dump(observations.tolist(), fp2)
-
-        del full_data
+        del records
         del observations
 
 
