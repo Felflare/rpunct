@@ -20,7 +20,10 @@ sns.set_theme(style="darkgrid")
 sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
-DATA_PATH = './training/datasets/'
+
+PATH_ROOT = './training/datasets/'
+PATH_DATA_RANGE = '2014-2022/'
+DATA_PATH = PATH_ROOT + PATH_DATA_RANGE
 RESULTS_PATH = './tests/'
 
 

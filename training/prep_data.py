@@ -15,8 +15,13 @@ import tensorflow_datasets as tfds
 from tqdm import tqdm
 
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
-PATH = './training/datasets/'
-NEWS_PATH = './training/datasets/news_data/'
+
+PATH_ROOT = './training/datasets/'
+PATH_DATA_ORIG = 'news_data/'
+PATH_DATA_RANGE = '2014-2022/'
+PATH = PATH_ROOT + PATH_DATA_RANGE
+NEWS_PATH = PATH_ROOT + PATH_DATA_ORIG
+
 NO_OUTPUT_FILES = 5
 SUMMARY_OR_BODY = 'body'
 
