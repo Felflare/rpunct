@@ -208,7 +208,7 @@ if __name__ == "__main__":
         if args.data[:7] == 'news-20':
             data_type, data_start, data_end = args.data.split('-')
             summaries = False
-        if args.data[:8] == 'news-sum':
+        elif args.data[:8] == 'news-sum':
             data_type, _ = args.data.split('-')
             summaries = True
             data_start, data_end = '', ''
