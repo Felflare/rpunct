@@ -36,7 +36,7 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
         # extract and process transcripts from JSON files
         print(f"\n> Preparing data from source: BBC News transcripts")
         dataset_path = collate_news_transcripts()
-        exit(1)
+        data_type = 'transcripts'
     else:
         raise ValueError("Unrecognised data source!")
 
