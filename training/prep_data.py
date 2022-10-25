@@ -26,12 +26,19 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
     # generate/collect raw data
     if data_type == 'news':
         # collect data from each JSONL file enumerating all BBC News articles for each year 2014-2022
-        print(f"\n> Preparing data from source: BBC News")
+        print(f"\n> Preparing data from source: BBC News articles")
         dataset_path = collate_news_articles(int(start_year), int(end_year), summaries)
-    else:  # data_type == 'reviews'
+    elif data_type == 'reviews':
         # save training/testing datasets from tensorflow to local csv files
         print("\n> Preparing data from source: Yelp reviews")
         dataset_path = download_reviews()
+    elif data_type == 'news-transcripts':
+        # extract and process transcripts from JSON files
+        print(f"\n> Preparing data from source: BBC News transcripts")
+        dataset_path = collate_news_transcripts()
+        exit(1)
+    else:
+        raise ValueError("Unrecognised data source!")
 
     for key in ['train', 'test']:
         print(f"\n> Generating dataset: {key.upper()}")
@@ -79,12 +86,12 @@ def collate_news_articles(start_date, end_date, summaries):
     else:
         summary_or_body = 'body'
 
-    print(f"\n> Assembling news article {summary_or_body[:-1]}ies (one line per {summary_or_body}):")
+    print(f"\n> Assembling news article {summary_or_body[:-1]}ies:")
     news_datasets = [f'news_{date}.jsonl' for date in range(start_date, end_date + 1)]
     articles = []
 
     for dataset_json in news_datasets:
-        json_path = os.path.join(PATH, 'news_data/', dataset_json)
+        json_path = os.path.join(PATH, 'news_data_2014-22/', dataset_json)
 
         with open(json_path, 'r') as fp:
             for line in fp:
@@ -117,6 +124,53 @@ def collate_news_articles(start_date, end_date, summaries):
 
     test = pd.DataFrame(test, columns=['text'])
     csv_path_test = os.path.join(dataset_path, 'test_news.csv')
+    test.to_csv(csv_path_test, index=False)
+    del test
+
+    return dataset_path
+
+
+def collate_news_transcripts():
+    # input transcripts from json files
+    print(f"\n> Assembling news transcripts:")
+    news_datasets = ['transcripts_2014-17.json', 'transcripts_2020.json']
+    articles = np.empty(shape=(0), dtype=object)
+
+    for dataset_json in news_datasets:
+        json_path = os.path.join(PATH, 'news_transcripts_2017-20/', dataset_json)
+
+        with open(json_path, 'r') as f:
+            obj = json.load(f)
+
+        transcriptions = pd.DataFrame(obj["Transcripts"])
+        speaker_segments = np.concatenate(transcriptions["Items"]).flat
+        articles = np.append(articles, speaker_segments)
+
+        del obj
+        del transcriptions
+        del speaker_segments
+
+    # train-test split
+    random.shuffle(articles)
+    split = math.ceil(0.9 * len(articles))
+    train = articles[:split]
+    test = articles[split:]
+    print(f"\t* Speaker segments in total    : {len(articles)}")
+    print(f"\t* Speaker segments in train set: {len(train)}")
+    print(f"\t* Speaker segments in test set : {len(test)}")
+    del articles
+
+    # save train/test data to csv
+    dataset_path = os.path.join(PATH, f'news-transcripts')
+    pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
+
+    train = pd.DataFrame(train, columns=['text'])
+    csv_path_train = os.path.join(dataset_path, 'train_transcripts.csv')
+    train.to_csv(csv_path_train, index=False)
+    del train
+
+    test = pd.DataFrame(test, columns=['text'])
+    csv_path_test = os.path.join(dataset_path, 'test_transcripts.csv')
     test.to_csv(csv_path_test, index=False)
     del test
 

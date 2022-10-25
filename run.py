@@ -21,7 +21,7 @@ if __name__ == "__main__":
         '--data',
         metavar='DATA',
         type=str,
-        choices=['news', 'reviews'],
+        choices=['news', 'reviews', 'news-transcripts'],
         default='news',
         help="Specify the dataset to be used to test the model: BBC News (`news`) or Yelp reviews (`reviews`) - default is BBC News."
     )
@@ -60,7 +60,7 @@ if __name__ == "__main__":
         '--data',
         metavar='DATA',
         type=str,
-        choices=['reviews', 'news-summaries'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
+        choices=['reviews', 'news-summaries', 'news-sum', 'news-transcripts', 'news-trans'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
         default='news-2014-2022',
         help="Specify the (path to the) dataset to be used to test the model: BBC News (`news-startyr-endyr`) or Yelp reviews (`reviews`) - default is BBC News 2014-2022."
     )
@@ -122,7 +122,7 @@ if __name__ == "__main__":
         '--data',
         metavar='DATA',
         type=str,
-        choices=['reviews', 'news-summaries'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
+        choices=['reviews', 'news-summaries', 'news-sum', 'news-transcripts', 'news-trans'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
         default='news-2014-2022',
         help="Specify the (path to the) dataset to be used to test the model: BBC News (`news-startyr-endyr`) or Yelp reviews (`reviews`) - default is BBC News 2014-2022."
     )
@@ -195,13 +195,20 @@ if __name__ == "__main__":
     print("\n> Arguments:", end='\n\n')
     print(pd.Series(vars(args)))
 
+    # expand any shortened input keywords
+    if args.data == 'news-sum':
+        args.data = 'news-summaries'
+    elif args.data == 'news-trans':
+        args.data = 'news-transcripts'
+
     # Run the pipeline for the specifc ML processing stage selected
     if args.stage == 'data':
-        # run data preparation pipeline
+        # error checking
         if args.end < args.start:
             raise ValueError("End year of news data range must not be earlier than start year")
-        else:
-            e2e_data(args.data, args.start, args.end, args.sum)
+
+        # run data preparation pipeline
+        e2e_data(args.data, args.start, args.end, args.sum)
 
     elif args.stage in ['train', 'test']:
         # run data preparation pipeline if dataset does not exist
@@ -209,12 +216,11 @@ if __name__ == "__main__":
             data_type, data_start, data_end = args.data.split('-')
             summaries = False
         elif args.data[:8] == 'news-sum':
-            data_type, _ = args.data.split('-')
-            summaries = True
-            data_start, data_end = '', ''
+            data_type, summaries, data_start, data_end = 'news', True, '', ''
+        elif args.data[:10] == 'news-trans':
+            data_type, summaries, data_start, data_end = 'transcripts', False, '', ''
         else:
-            data_type, data_start, data_end = args.data, '', ''
-            summaries = False
+            data_type, summaries, data_start, data_end = args.data, False, '', ''
 
         dataset_exists = check_data_exists(
             data_type=data_type,
