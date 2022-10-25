@@ -46,13 +46,21 @@ if __name__ == "__main__":
         help="Specify the end year of the range of news articles you want to input as the dataset - default is 2022."
     )
 
+    data_parser.add_argument(
+        '-sm',
+        '--sum',
+        action='store_true',
+        default=False,
+        help="Toggle between BBC News article summaries and bodies - default is bodies."
+    )
+
     # Training arguments
     train_parser.add_argument(
         '-d',
         '--data',
         metavar='DATA',
         type=str,
-        choices=['reviews'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
+        choices=['reviews', 'news-summaries'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
         default='news-2014-2022',
         help="Specify the (path to the) dataset to be used to test the model: BBC News (`news-startyr-endyr`) or Yelp reviews (`reviews`) - default is BBC News 2014-2022."
     )
@@ -114,7 +122,7 @@ if __name__ == "__main__":
         '--data',
         metavar='DATA',
         type=str,
-        choices=['reviews'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
+        choices=['reviews', 'news-summaries'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
         default='news-2014-2022',
         help="Specify the (path to the) dataset to be used to test the model: BBC News (`news-startyr-endyr`) or Yelp reviews (`reviews`) - default is BBC News 2014-2022."
     )
@@ -193,24 +201,31 @@ if __name__ == "__main__":
         if args.end < args.start:
             raise ValueError("End year of news data range must not be earlier than start year")
         else:
-            e2e_data(args.data, args.start, args.end)
+            e2e_data(args.data, args.start, args.end, args.sum)
 
     elif args.stage in ['train', 'test']:
         # run data preparation pipeline if dataset does not exist
-        if args.data[:5] == 'news-':
+        if args.data[:7] == 'news-20':
             data_type, data_start, data_end = args.data.split('-')
+            summaries = False
+        if args.data[:8] == 'news-sum':
+            data_type, _ = args.data.split('-')
+            summaries = True
+            data_start, data_end = '', ''
         else:
             data_type, data_start, data_end = args.data, '', ''
+            summaries = False
 
         dataset_exists = check_data_exists(
             data_type=data_type,
             train_or_test=args.stage,
             start_date=data_start,
-            end_date=data_end
+            end_date=data_end,
+            summaries=summaries
         )
 
         if not dataset_exists:
-            e2e_data(data_type, data_start, data_end)
+            e2e_data(data_type, data_start, data_end, summaries)
 
         if args.stage == 'train':
             # run pipeline to build and train language model

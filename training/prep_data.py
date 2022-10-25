@@ -17,18 +17,17 @@ import tensorflow_datasets as tfds
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
 PATH = './training/datasets/'
 NO_OUTPUT_FILES = 5
-SUMMARY_OR_BODY = 'body'
 
 
-def e2e_data(data_type='news', start_year='2014', end_year='2022'):
+def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False):
     """
     Full pipeline for compiling and formatting training data from BBC News articles or Yelp reviews
     """
     # generate/collect raw data
     if data_type == 'news':
         # collect data from each JSONL file enumerating all BBC News articles for each year 2014-2022
-        print(f"\n> Preparing data from source: BBC News ({SUMMARY_OR_BODY})")
-        dataset_path = collate_news_articles(int(start_year), int(end_year))
+        print(f"\n> Preparing data from source: BBC News")
+        dataset_path = collate_news_articles(int(start_year), int(end_year), summaries)
     else:  # data_type == 'reviews'
         # save training/testing datasets from tensorflow to local csv files
         print("\n> Preparing data from source: Yelp reviews")
@@ -56,10 +55,13 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022'):
     print("\n> Data generation complete", end='\n\n')
 
 
-def check_data_exists(data_type='news', train_or_test='train', start_date='2014', end_date='2022'):
+def check_data_exists(data_type='news', train_or_test='train', start_date='2014', end_date='2022', summaries=False):
     # check whether the training data has been created or not yet
     if data_type == 'news':
-        data_dir = os.path.join(PATH, f'news-{start_date}-{end_date}')
+        if summaries:
+            data_dir = os.path.join(PATH, f'news-summaries')
+        else:
+            data_dir = os.path.join(PATH, f'news-{start_date}-{end_date}')
     else:
         data_dir = os.path.join(PATH, data_type)
 
@@ -71,8 +73,13 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
     return data_files_exist
 
 
-def collate_news_articles(start_date, end_date):
-    print(f"\n> Assembling news article {SUMMARY_OR_BODY[:-1]}ies (one line per {SUMMARY_OR_BODY}):")
+def collate_news_articles(start_date, end_date, summaries):
+    if summaries:
+        summary_or_body = 'summary'
+    else:
+        summary_or_body = 'body'
+
+    print(f"\n> Assembling news article {summary_or_body[:-1]}ies (one line per {summary_or_body}):")
     news_datasets = [f'news_{date}.jsonl' for date in range(start_date, end_date + 1)]
     articles = []
 
@@ -82,7 +89,7 @@ def collate_news_articles(start_date, end_date):
         with open(json_path, 'r') as fp:
             for line in fp:
                 obj = json.loads(line)
-                articles.append(obj[SUMMARY_OR_BODY])
+                articles.append(obj[summary_or_body])
                 del obj
 
     # train-test split
@@ -96,7 +103,11 @@ def collate_news_articles(start_date, end_date):
     del articles
 
     # save train/test data to csv
-    dataset_path = os.path.join(PATH, f'news-{start_date}-{end_date}')
+    if summaries:
+        dataset_path = os.path.join(PATH, f'news-summaries')
+    else:
+        dataset_path = os.path.join(PATH, f'news-{start_date}-{end_date}')
+
     pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
 
     train = pd.DataFrame(train, columns=['text'])
@@ -243,7 +254,7 @@ def create_training_samples(all_records, file_out_nm='train_data', file_out_path
         with open(out_path, 'wb') as f:
             np.save(f, observations, allow_pickle=True)
 
-        print(f"\t\t- Output data to file: {out}")
+        print(f"\t\t- Output data to file: {out_path}")
 
         del records
         del observations
