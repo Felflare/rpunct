@@ -212,14 +212,12 @@ if __name__ == "__main__":
 
     elif args.stage in ['train', 'test']:
         # run data preparation pipeline if dataset does not exist
-        if args.data[:7] == 'news-20':
+        if args.data[:7] == 'news-20':  # articles between two dates
             data_type, data_start, data_end = args.data.split('-')
             summaries = False
-        elif args.data[:8] == 'news-sum':
+        elif args.data[:8] == 'news-sum':  # summaries
             data_type, summaries, data_start, data_end = 'news', True, '', ''
-        elif args.data[:10] == 'news-trans':
-            data_type, summaries, data_start, data_end = 'transcripts', False, '', ''
-        else:
+        else:  # transcripts etc.
             data_type, summaries, data_start, data_end = args.data, False, '', ''
 
         dataset_exists = check_data_exists(

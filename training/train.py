@@ -110,8 +110,10 @@ def load_datasets(data_dir='reviews', train_or_test='train'):
     Then, given this list of data paths return a single data object containing all data slices.
     """
     # convert from dir name to file name
-    if data_dir[:5] == 'news-':
-        data_type = data_dir[:4]
+    if data_dir[:6] == 'news-2':
+        data_type = 'news'
+    elif data_dir[:9] == 'news-tran':
+        data_type = 'transcripts'
     else:
         data_type = data_dir
 

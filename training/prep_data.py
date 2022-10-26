@@ -72,6 +72,9 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
     else:
         data_dir = os.path.join(PATH, data_type)
 
+    if data_type == 'news-transcripts':
+        data_type = 'transcripts'
+
     data_file_pattern = f'{data_type}_{train_or_test}_*.npy'
     dataset_paths = list(pathlib.Path(data_dir).glob(data_file_pattern))
     data_files_exist = len(dataset_paths) == NO_OUTPUT_FILES
