@@ -27,7 +27,7 @@ def e2e_train(data_source='reviews', use_cuda=True, validation=False, dataset_st
     Training pipeline to format training dataset, build model, and train it.
     """
     # generate correctly formatted training data
-    print(f"\n> Loading data from source: {data_source}")
+    print(f"\n> Preparing data from source: {data_source}")
     prepare_data(source=data_source, validation=validation, print_stats=dataset_stats)
 
     # create a simpletransformer model and use data to train it
@@ -54,6 +54,13 @@ def prepare_data(source='reviews', train_or_test='train', validation=True, print
     Prepares data from Original text into Connnl formatted datasets ready for training
     In addition constraints label space to only labels we care about
     """
+    # check if txt has been made already
+    output_txt = f'rpunct_{train_or_test}_set.txt'
+    train_set_path = os.path.join(PATH, source, output_txt)
+    if os.path.exists(train_set_path):
+        print(f"\t* Training dataset exists: {train_set_path}")
+        return
+
     # load formatted data generated through `prep_data.py`
     token_data = load_datasets(source, train_or_test)
 
@@ -86,8 +93,6 @@ def prepare_data(source='reviews', train_or_test='train', validation=True, print
     print(f"\t* {train_or_test.capitalize()}ing dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
 
     # format training set as Connl NER txt file
-    output_txt = f'rpunct_{train_or_test}_set.txt'
-    train_set_path = os.path.join(PATH, source, output_txt)
     create_text_file(train_set, train_set_path)
 
     # print label distribution in training set
@@ -162,11 +167,13 @@ def create_text_file(dataset, name):
     Create Connl ner format file
     """
     with open(name, 'w') as fp:
-        for obs in dataset:
-            for tok in obs:
-                line = tok[1] + " " + tok[2] + '\n'
-                fp.write(line)
-            fp.write('\n')
+        with tqdm(dataset) as D:
+            for obs in D:
+                D.set_description("Creating txt file")
+                for tok in obs:
+                    line = tok[1] + " " + tok[2] + '\n'
+                    fp.write(line)
+                fp.write('\n')
 
 
 def get_label_stats(dataset):
