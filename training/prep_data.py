@@ -19,7 +19,7 @@ PATH = './training/datasets/'
 NO_OUTPUT_FILES = 5
 
 
-def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False):
+def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10'):
     """
     Full pipeline for compiling and formatting training data from BBC News articles or Yelp reviews
     """
@@ -27,7 +27,9 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
     if data_type == 'news':
         # collect data from each JSONL file enumerating all BBC News articles for each year 2014-2022
         print(f"\n> Preparing data from source: BBC News articles")
-        dataset_path = collate_news_articles(int(start_year), int(end_year), summaries)
+        tt_split = tt_split.split(':')
+        split = int(tt_split[0]) / 100
+        dataset_path = collate_news_articles(int(start_year), int(end_year), summaries, train_split=split)
     elif data_type == 'reviews':
         # save training/testing datasets from tensorflow to local csv files
         print("\n> Preparing data from source: Yelp reviews")
@@ -35,6 +37,8 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
     elif data_type == 'news-transcripts':
         # extract and process transcripts from JSON files
         print(f"\n> Preparing data from source: BBC News transcripts")
+        tt_split = tt_split.split(':')
+        split = int(tt_split[0]) / 100
         dataset_path = collate_news_transcripts()
         data_type = 'transcripts'
     else:
@@ -83,7 +87,7 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
     return data_files_exist
 
 
-def collate_news_articles(start_date, end_date, summaries):
+def collate_news_articles(start_date, end_date, summaries, train_split=0.9):
     if summaries:
         summary_or_body = 'summary'
     else:
@@ -104,7 +108,7 @@ def collate_news_articles(start_date, end_date, summaries):
 
     # train-test split
     random.shuffle(articles)
-    split = math.ceil(0.9 * len(articles))
+    split = math.ceil(train_split * len(articles))
     train = articles[:split]
     test = articles[split:]
     print(f"\t* Articles in total    : {len(articles)}")
@@ -133,7 +137,7 @@ def collate_news_articles(start_date, end_date, summaries):
     return dataset_path
 
 
-def collate_news_transcripts():
+def collate_news_transcripts(train_split=0.9):
     # input transcripts from json files
     print(f"\n> Assembling news transcripts:")
     news_datasets = ['transcripts_2014-17.json', 'transcripts_2020.json']
@@ -155,7 +159,7 @@ def collate_news_transcripts():
 
     # train-test split
     random.shuffle(articles)
-    split = math.ceil(0.9 * len(articles))
+    split = math.ceil(train_split * len(articles))
     train = articles[:split]
     test = articles[split:]
     print(f"\t* Speaker segments in total    : {len(articles)}")

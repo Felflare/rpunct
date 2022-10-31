@@ -54,6 +54,16 @@ if __name__ == "__main__":
         help="Toggle between BBC News article summaries and bodies - default is bodies."
     )
 
+    data_parser.add_argument(
+        '-sp',
+        '--split',
+        metavar='TRAIN:TEST',
+        action='store',
+        type=str,
+        default='90:10',
+        help="Specify the train-test split to be implemented (TRAIN perc. of data for training, TEST for testing) - default is 90:10."
+    )
+
     # Training arguments
     train_parser.add_argument(
         '-d',
@@ -208,7 +218,7 @@ if __name__ == "__main__":
             raise ValueError("End year of news data range must not be earlier than start year")
 
         # run data preparation pipeline
-        e2e_data(args.data, args.start, args.end, args.sum)
+        e2e_data(args.data, args.start, args.end, args.sum, args.split)
 
     elif args.stage in ['train', 'test']:
         # run data preparation pipeline if dataset does not exist
