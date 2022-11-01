@@ -54,12 +54,22 @@ def prepare_data(source='reviews', train_or_test='train', validation=True, print
     Prepares data from Original text into Connnl formatted datasets ready for training
     In addition constraints label space to only labels we care about
     """
-    # check if txt has been made already
+    # create dataset paths
     output_txt = f'rpunct_{train_or_test}_set.txt'
     train_set_path = os.path.join(PATH, source, output_txt)
+
+    val_output_txt='rpunct_val_set.txt'
+    val_set_path = os.path.join(PATH, source, val_output_txt)
+
+    # check if txt files have been built already
     if os.path.exists(train_set_path):
-        print(f"\t* Training dataset exists: {train_set_path}")
-        return
+        if validation and os.path.exists(val_set_path):
+            print(f"\t* Training dataset exists: {train_set_path}")
+            print(f"\t* Validation dataset exists: {val_set_path}")
+            return
+        elif not validation:
+            print(f"\t* Training dataset exists: {train_set_path}")
+            return
 
     # load formatted data generated through `prep_data.py`
     token_data = load_datasets(source, train_or_test)
@@ -73,10 +83,7 @@ def prepare_data(source='reviews', train_or_test='train', validation=True, print
         # training & validation sets
         split = math.ceil(0.9 * len(token_data))
         train_set = token_data[:split].copy()
-
         val_set = token_data[split:].copy()
-        val_output_txt='rpunct_val_set.txt'
-        val_set_path = os.path.join(PATH, source, val_output_txt)
 
         # format validaton set as Connl NER txt file
         print(f"\t* Validation dataset shape: ({len(val_set)}, {len(val_set[0])}, {len(val_set[0][0])})")
@@ -98,9 +105,6 @@ def prepare_data(source='reviews', train_or_test='train', validation=True, print
     # print label distribution in training set
     if print_stats:
         train_stats = get_label_stats(train_set)
-        train_stats = pd.DataFrame.from_dict(train_stats.items())
-        train_stats.columns = ['Punct Tag', 'Count']
-
         print(f"\t* {train_or_test.capitalize()}ing data statistics:")
         print(train_stats)
 
@@ -169,7 +173,7 @@ def create_text_file(dataset, name):
     with open(name, 'w') as fp:
         with tqdm(dataset) as D:
             for obs in D:
-                D.set_description("Creating txt file")
+                D.set_description("        * Creating txt file")
                 for tok in obs:
                     line = tok[1] + " " + tok[2] + '\n'
                     fp.write(line)
@@ -180,18 +184,26 @@ def get_label_stats(dataset):
     """
     Generates frequency of different labels in the dataset.
     """
-    if dataset == None:
-        return "None"
-
     calcs = {}
+    total = 0
     for i in dataset:
         for tok in i:
+            total += 1
             if tok[2] not in calcs.keys():
                 calcs[tok[2]] = 1
             else:
                 calcs[tok[2]] += 1
 
-    return calcs
+    output = pd.DataFrame(columns=['Punct Tag', 'Count', 'Proportion'])
+    for k in calcs.keys():
+        row = pd.DataFrame.from_dict({
+            'Punct Tag': [k],
+            'Count': [calcs[k]],
+            'Proportion': [(calcs[k] / total) * 100]
+        })
+        output = pd.concat([output, row])
+
+    return output.reset_index(drop=True)
 
 
 def train_model(data_dir='reviews', train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_set.txt', use_cuda=True, validation=True, epochs=3):
