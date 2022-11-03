@@ -16,7 +16,7 @@ import tensorflow_datasets as tfds
 
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
 PATH = './training/datasets/'
-NO_OUTPUT_FILES = 10
+NO_OUTPUT_FILES = 5
 
 
 def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10'):
@@ -39,7 +39,7 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
         print(f"\n> Preparing data from source: BBC News transcripts")
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
-        dataset_path = collate_news_transcripts()
+        dataset_path = collate_news_transcripts(train_split=split)
         data_type = 'transcripts'
     else:
         raise ValueError("Unrecognised data source!")
@@ -81,7 +81,7 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
 
     data_file_pattern = f'{data_type}_{train_or_test}_*.npy'
     dataset_paths = list(pathlib.Path(data_dir).glob(data_file_pattern))
-    data_files_exist = len(dataset_paths) == NO_OUTPUT_FILES
+    data_files_exist = len(dataset_paths) > 0
     print(f"\n> Required data files found at '{data_dir}/{data_file_pattern}'? : {data_files_exist}")
 
     return data_files_exist
@@ -162,6 +162,7 @@ def collate_news_transcripts(train_split=0.9):
     split = math.ceil(train_split * len(articles))
     train = articles[:split]
     test = articles[split:]
+    print(f"\t* {train_split:.2f}:{1-train_split:.2f} data split")
     print(f"\t* Speaker segments in total    : {len(articles)}")
     print(f"\t* Speaker segments in train set: {len(train)}")
     print(f"\t* Speaker segments in test set : {len(test)}")
