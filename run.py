@@ -205,63 +205,8 @@ if __name__ == "__main__":
     print("\n> Arguments:", end='\n\n')
     print(pd.Series(vars(args)))
 
-    # expand any shortened input keywords
-    if args.data == 'news-sum':
-        args.data = 'news-summaries'
-    elif args.data == 'news-trans':
-        args.data = 'news-transcripts'
-
-    # Run the pipeline for the specifc ML processing stage selected
-    if args.stage == 'data':
-        # error checking
-        if args.end < args.start:
-            raise ValueError("End year of news data range must not be earlier than start year")
-
-        # run data preparation pipeline
-        e2e_data(args.data, args.start, args.end, args.sum, args.split)
-
-    elif args.stage in ['train', 'test']:
-        # run data preparation pipeline if dataset does not exist
-        if args.data[:7] == 'news-20':  # articles between two dates
-            data_type, data_start, data_end = args.data.split('-')
-            summaries = False
-        elif args.data[:8] == 'news-sum':  # summaries
-            data_type, summaries, data_start, data_end = 'news', True, '', ''
-        else:  # transcripts etc.
-            data_type, summaries, data_start, data_end = args.data, False, '', ''
-
-        dataset_exists = check_data_exists(
-            data_type=data_type,
-            train_or_test=args.stage,
-            start_date=data_start,
-            end_date=data_end,
-            summaries=summaries
-        )
-
-        if not dataset_exists:
-            e2e_data(data_type, data_start, data_end, summaries)
-
-        if args.stage == 'train':
-            # run pipeline to build and train language model
-            e2e_train(
-                data_source=args.data,
-                use_cuda=args.cuda,
-                validation=args.val,
-                dataset_stats=args.stats,
-                training_plot=args.plot,
-                epochs=args.epochs
-            )
-        else:  # args.stage == 'test'
-            # run model testing pipeline
-            e2e_test(
-                args.models,
-                data_source=args.data,
-                use_cuda=args.cuda,
-                print_stats=args.stats,
-                output_file=args.output
-            )
-
-    elif args.stage == 'punct':
+    # if calling for inference, run punctuate.py function
+    if args.stage == 'punct':
         # generate instance of rpunct model and run text through it
         run_rpunct(
             use_cuda=args.cuda,
@@ -269,3 +214,60 @@ if __name__ == "__main__":
             output_txt=args.output,
             model_location=args.model
         )
+
+    else:
+        # expand any shortened input keywords
+        if args.data == 'news-sum':
+            args.data = 'news-summaries'
+        elif args.data == 'news-trans':
+            args.data = 'news-transcripts'
+
+        # Run the pipeline for the ML processing stage selected (data prep, train, test)
+        if args.stage == 'data':
+            # error checking
+            if args.end < args.start:
+                raise ValueError("End year of news data range must not be earlier than start year")
+
+            # run data preparation pipeline
+            e2e_data(args.data, args.start, args.end, args.sum, args.split)
+
+        elif args.stage in ['train', 'test']:
+            # run data preparation pipeline if dataset does not exist
+            if args.data[:7] == 'news-20':  # articles between two dates
+                data_type, data_start, data_end = args.data.split('-')
+                summaries = False
+            elif args.data[:8] == 'news-sum':  # summaries
+                data_type, summaries, data_start, data_end = 'news', True, '', ''
+            else:  # transcripts etc.
+                data_type, summaries, data_start, data_end = args.data, False, '', ''
+
+            dataset_exists = check_data_exists(
+                data_type=data_type,
+                train_or_test=args.stage,
+                start_date=data_start,
+                end_date=data_end,
+                summaries=summaries
+            )
+
+            if not dataset_exists:
+                e2e_data(data_type, data_start, data_end, summaries)
+
+            if args.stage == 'train':
+                # run pipeline to build and train language model
+                e2e_train(
+                    data_source=args.data,
+                    use_cuda=args.cuda,
+                    validation=args.val,
+                    dataset_stats=args.stats,
+                    training_plot=args.plot,
+                    epochs=args.epochs
+                )
+            else:  # args.stage == 'test'
+                # run model testing pipeline
+                e2e_test(
+                    args.models,
+                    data_source=args.data,
+                    use_cuda=args.cuda,
+                    print_stats=args.stats,
+                    output_file=args.output
+                )

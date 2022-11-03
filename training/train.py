@@ -168,7 +168,7 @@ def clean_up_labels(dataset, valid_labels):
 
 def create_text_file(dataset, name):
     """
-    Create Connl ner format file
+    Create Connl NER format file
     """
     with open(name, 'w') as fp:
         with tqdm(dataset) as D:

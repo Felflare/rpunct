@@ -16,7 +16,7 @@ import tensorflow_datasets as tfds
 
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
 PATH = './training/datasets/'
-NO_OUTPUT_FILES = 5
+NO_OUTPUT_FILES = 10
 
 
 def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10'):
@@ -144,7 +144,7 @@ def collate_news_transcripts(train_split=0.9):
     articles = np.empty(shape=(0), dtype=object)
 
     for dataset_json in news_datasets:
-        json_path = os.path.join(PATH, 'news_transcripts_2017-20/', dataset_json)
+        json_path = os.path.join(PATH, 'news_transcripts_2014-20/', dataset_json)
 
         with open(json_path, 'r') as f:
             obj = json.load(f)
@@ -269,7 +269,7 @@ def create_record(row):
     return new_obs
 
 
-def create_training_samples(all_records, file_out_nm='train_data', file_out_path=PATH, num_splits=5, train_or_test='train'):
+def create_training_samples(all_records, file_out_nm='train_data', file_out_path=PATH, num_splits=NO_OUTPUT_FILES, train_or_test='train'):
     """
     Given a looong list of tokens, splits them into 500 token chunks
     thus creating observations. This is for fine-tuning with simpletransformers
@@ -280,7 +280,7 @@ def create_training_samples(all_records, file_out_nm='train_data', file_out_path
 
     # evaluate size of list of dicts enumerating words and their labels
     size = len(all_records) // num_splits
-    print(f"\t\t- Total words in {train_or_test} set: {size}")
+    print(f"\t\t- Total words in {train_or_test} set: {len(all_records)}")
 
     # segment data into `num_splits` chunks
     while _round < num_splits:
