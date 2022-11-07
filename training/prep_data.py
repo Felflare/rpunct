@@ -48,18 +48,16 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
     for key in ['train', 'test']:
         print(f"\n> Generating dataset: {key.upper()}")
         # constuct df of text and labels (punctuation tag per word)
-        """rpunct_dataset_path = create_rpunct_dataset(dataset_path, data_type, key)"""
         rpunct_dataset = create_rpunct_dataset(dataset_path, data_type, key)
 
         # split data into chunks for model
         print("\t* Generating data samples")
         output_file = f"{data_type}_{key}"
-        """total_words += create_training_samples(rpunct_dataset_path, output_file, file_out_path=dataset_path, train_or_test=key)"""
         total_words += create_training_samples(rpunct_dataset, output_file, file_out_path=dataset_path, train_or_test=key)
         del rpunct_dataset
 
-    print("\n> Data generation complete", end='\n\n')
-    print(f"\t* Total no. words in both datasets: {total_words}")
+    print("\n> Data generation complete")
+    print(f"\t* Total no. words in both datasets: {total_words}", end='\n\n')
 
 
 def check_data_exists(data_type='news', train_or_test='train', start_date='2014', end_date='2022', summaries=False):
@@ -233,12 +231,6 @@ def create_rpunct_dataset(path, data_type, split):
             all_records.extend(records)
             del records
 
-    """# output the list of all {word, label} dicts to a json file
-    output_path = os.path.join(path, f'rpunct_dataset_{split}.json')
-    with open(output_path, 'w') as fp:
-        json.dump(all_records, fp)
-
-    return output_path"""
     return all_records
 
 
@@ -291,24 +283,15 @@ def create_training_samples(words_and_labels, file_out_nm='train_data', file_out
     """
     random.seed(1337)
     _round = 0
-
-    """# read in words-labels dict
-    with open(words_and_labels, 'r') as fp:
-        all_records = json.load(fp)
-
-    num_words = len(all_records)
-    del all_records"""
     num_words = len(words_and_labels)
 
     # determine number of output files dependent on size of dataset
-    num_splits = max(5, math.ceil(num_words / size))
+    num_splits = math.ceil(num_words / size)
     print(f"\t\t- No. words in {train_or_test} set: {num_words}")
 
     # segment data into `num_splits` chunks
     while _round < num_splits:
-        """# read in and locate the `_round`th chunk of dicts
-        with open(words_and_labels, 'r') as fp:
-            records = json.load(fp)[size * _round: size * (_round + 1)]"""
+        # locate the `_round`th chunk of dicts
         records = words_and_labels[size * _round: size * (_round + 1)]
 
         # break main chunk of dicts (at this loop round) into smaller chunks of 500 words (`splits` = start/end indices of small chunks)
@@ -344,9 +327,6 @@ def create_training_samples(words_and_labels, file_out_nm='train_data', file_out
 
         del records
         del observations
-
-    # remove all now redundant data files in the directory
-
 
     return num_words
 
