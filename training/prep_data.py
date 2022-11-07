@@ -16,7 +16,7 @@ import tensorflow_datasets as tfds
 
 VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
 PATH = './training/datasets/'
-NO_OUTPUT_FILES = 5
+WORDS_PER_FILE = 15000000
 
 
 def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10'):
@@ -44,26 +44,22 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
     else:
         raise ValueError("Unrecognised data source!")
 
+    total_words = 0
     for key in ['train', 'test']:
         print(f"\n> Generating dataset: {key.upper()}")
-
-        # load in train/test data
-        data_split_path = os.path.join(dataset_path, f'{key}_{data_type}.csv')
-        data_split = pd.read_csv(data_split_path)
-        data_split.dropna(inplace=True)
-        data_split.reset_index(drop=True, inplace=True)
-
         # constuct df of text and labels (punctuation tag per word)
-        words_and_labels = create_rpunct_dataset(data_split)
-        del data_split
+        """rpunct_dataset_path = create_rpunct_dataset(dataset_path, data_type, key)"""
+        rpunct_dataset = create_rpunct_dataset(dataset_path, data_type, key)
 
         # split data into chunks for model
         print("\t* Generating data samples")
         output_file = f"{data_type}_{key}"
-        create_training_samples(words_and_labels, output_file, file_out_path=dataset_path, num_splits=NO_OUTPUT_FILES, train_or_test=key)
-        del words_and_labels
+        """total_words += create_training_samples(rpunct_dataset_path, output_file, file_out_path=dataset_path, train_or_test=key)"""
+        total_words += create_training_samples(rpunct_dataset, output_file, file_out_path=dataset_path, train_or_test=key)
+        del rpunct_dataset
 
     print("\n> Data generation complete", end='\n\n')
+    print(f"\t* Total no. words in both datasets: {total_words}")
 
 
 def check_data_exists(data_type='news', train_or_test='train', start_date='2014', end_date='2022', summaries=False):
@@ -109,8 +105,10 @@ def collate_news_articles(start_date, end_date, summaries, train_split=0.9):
     # train-test split
     random.shuffle(articles)
     split = math.ceil(train_split * len(articles))
+
     train = articles[:split]
     test = articles[split:]
+
     print(f"\t* Articles in total    : {len(articles)}")
     print(f"\t* Articles in train set: {len(train)}")
     print(f"\t* Articles in test set : {len(test)}")
@@ -125,11 +123,13 @@ def collate_news_articles(start_date, end_date, summaries, train_split=0.9):
     pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
 
     train = pd.DataFrame(train, columns=['text'])
+    train['text'] = train['text'].str.replace('\n',' ')
     csv_path_train = os.path.join(dataset_path, 'train_news.csv')
     train.to_csv(csv_path_train, index=False)
     del train
 
     test = pd.DataFrame(test, columns=['text'])
+    test['text'] = test['text'].str.replace('\n',' ')
     csv_path_test = os.path.join(dataset_path, 'test_news.csv')
     test.to_csv(csv_path_test, index=False)
     del test
@@ -173,11 +173,13 @@ def collate_news_transcripts(train_split=0.9):
     pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
 
     train = pd.DataFrame(train, columns=['text'])
+    train['text'] = train['text'].str.replace('\n',' ')
     csv_path_train = os.path.join(dataset_path, 'train_transcripts.csv')
     train.to_csv(csv_path_train, index=False)
     del train
 
     test = pd.DataFrame(test, columns=['text'])
+    test['text'] = test['text'].str.replace('\n',' ')
     csv_path_test = os.path.join(dataset_path, 'test_transcripts.csv')
     test.to_csv(csv_path_test, index=False)
     del test
@@ -215,17 +217,28 @@ def download_reviews():
     return dataset_path
 
 
-def create_rpunct_dataset(df):
+def create_rpunct_dataset(path, data_type, split):
+    # load in train/test data
+    data_split_path = os.path.join(path, f'{split}_{data_type}.csv')
+    data_split = pd.read_csv(data_split_path)
+    data_split.dropna(inplace=True)
+    data_split.reset_index(drop=True, inplace=True)
+
     # constuct df of text and labels (punctuation tag per word)
     all_records = []
-    with tqdm(df['text']) as T:
+    with tqdm(data_split['text']) as T:
         for article in T:
             T.set_description("        * Labelling data instances")
             records = create_record(article)  # create a list enumerating each word in a single article and its label: [...{id, word, label}...]
             all_records.extend(records)
             del records
 
-    # output the list of all {word, label} dicts
+    """# output the list of all {word, label} dicts to a json file
+    output_path = os.path.join(path, f'rpunct_dataset_{split}.json')
+    with open(output_path, 'w') as fp:
+        json.dump(all_records, fp)
+
+    return output_path"""
     return all_records
 
 
@@ -270,7 +283,7 @@ def create_record(row):
     return new_obs
 
 
-def create_training_samples(all_records, file_out_nm='train_data', file_out_path=PATH, num_splits=NO_OUTPUT_FILES, train_or_test='train'):
+def create_training_samples(words_and_labels, file_out_nm='train_data', file_out_path=PATH, train_or_test='train', size=WORDS_PER_FILE):
     """
     Given a looong list of tokens, splits them into 500 token chunks
     thus creating observations. This is for fine-tuning with simpletransformers
@@ -279,14 +292,24 @@ def create_training_samples(all_records, file_out_nm='train_data', file_out_path
     random.seed(1337)
     _round = 0
 
-    # evaluate size of list of dicts enumerating words and their labels
-    size = len(all_records) // num_splits
-    print(f"\t\t- Total words in {train_or_test} set: {len(all_records)}")
+    """# read in words-labels dict
+    with open(words_and_labels, 'r') as fp:
+        all_records = json.load(fp)
+
+    num_words = len(all_records)
+    del all_records"""
+    num_words = len(words_and_labels)
+
+    # determine number of output files dependent on size of dataset
+    num_splits = max(5, math.ceil(num_words / size))
+    print(f"\t\t- No. words in {train_or_test} set: {num_words}")
 
     # segment data into `num_splits` chunks
     while _round < num_splits:
-        # locate the `_round`th chunk of dicts
-        records = all_records[size * _round: size * (_round + 1)]
+        """# read in and locate the `_round`th chunk of dicts
+        with open(words_and_labels, 'r') as fp:
+            records = json.load(fp)[size * _round: size * (_round + 1)]"""
+        records = words_and_labels[size * _round: size * (_round + 1)]
 
         # break main chunk of dicts (at this loop round) into smaller chunks of 500 words (`splits` = start/end indices of small chunks)
         splits = create_tokenized_obs(records)
@@ -306,10 +329,11 @@ def create_training_samples(all_records, file_out_nm='train_data', file_out_path
                 observations[j] = data_slice  # add each list of 500 dicts to the dataset
                 del data_slice
 
-        # shuffle dataset of 500 word-label dicts and save to a txt file
+        # shuffle dataset of 500 word-label dicts
         _round += 1
         random.shuffle(observations)
 
+        # save split of dataset to a txt file
         out = f'{file_out_nm}_{_round}.npy'
         out_path = os.path.join(file_out_path, out)
 
@@ -320,6 +344,11 @@ def create_training_samples(all_records, file_out_nm='train_data', file_out_path
 
         del records
         del observations
+
+    # remove all now redundant data files in the directory
+
+
+    return num_words
 
 
 def create_tokenized_obs(input_list, num_toks=500, offset=250):
