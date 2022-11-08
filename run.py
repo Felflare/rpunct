@@ -21,7 +21,7 @@ if __name__ == "__main__":
         '--data',
         metavar='DATA',
         type=str,
-        choices=['news', 'reviews', 'news-transcripts'],
+        choices=['news', 'reviews', 'news-transcripts', 'composite-news', 'comp-news'],
         default='news',
         help="Specify the dataset to be used to test the model: BBC News (`news`) or Yelp reviews (`reviews`) - default is BBC News."
     )
@@ -70,7 +70,7 @@ if __name__ == "__main__":
         '--data',
         metavar='DATA',
         type=str,
-        choices=['reviews', 'news-summaries', 'news-sum', 'news-transcripts', 'news-trans'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
+        choices=['reviews', 'news-summaries', 'news-sum', 'composite-news', 'comp-news', 'news-transcripts', 'news-trans'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
         default='news-2014-2022',
         help="Specify the (path to the) dataset to be used to test the model: BBC News (`news-startyr-endyr`) or Yelp reviews (`reviews`) - default is BBC News 2014-2022."
     )
@@ -132,7 +132,7 @@ if __name__ == "__main__":
         '--data',
         metavar='DATA',
         type=str,
-        choices=['reviews', 'news-summaries', 'news-sum', 'news-transcripts', 'news-trans'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
+        choices=['reviews', 'news-summaries', 'news-sum', 'composite-news', 'comp-news', 'news-transcripts', 'news-trans'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
         default='news-2014-2022',
         help="Specify the (path to the) dataset to be used to test the model: BBC News (`news-startyr-endyr`) or Yelp reviews (`reviews`) - default is BBC News 2014-2022."
     )
@@ -221,6 +221,8 @@ if __name__ == "__main__":
             args.data = 'news-summaries'
         elif args.data == 'news-trans':
             args.data = 'news-transcripts'
+        elif args.data == 'comp-news':
+            args.data = 'composite-news'
 
         # Run the pipeline for the ML processing stage selected (data prep, train, test)
         if args.stage == 'data':

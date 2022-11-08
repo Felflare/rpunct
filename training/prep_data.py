@@ -30,10 +30,12 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
         dataset_path = collate_news_articles(int(start_year), int(end_year), summaries, train_split=split)
+
     elif data_type == 'reviews':
         # save training/testing datasets from tensorflow to local csv files
         print("\n> Preparing data from source: Yelp reviews")
         dataset_path = download_reviews()
+
     elif data_type == 'news-transcripts':
         # extract and process transcripts from JSON files
         print(f"\n> Preparing data from source: BBC News transcripts")
@@ -41,6 +43,15 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
         split = int(tt_split[0]) / 100
         dataset_path = collate_news_transcripts(train_split=split)
         data_type = 'transcripts'
+
+    elif data_type == 'composite-news':
+        # create composte dataset of BBC News articles and transcripts
+        print(f"\n> Preparing data from source: BBC News articles & transcripts")
+        tt_split = tt_split.split(':')
+        split = int(tt_split[0]) / 100
+        dataset_path = create_composite_dataset(distinct=False, train_split=split)
+        data_type = 'composite'
+
     else:
         raise ValueError("Unrecognised data source!")
 
@@ -72,6 +83,8 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
 
     if data_type == 'news-transcripts':
         data_type = 'transcripts'
+    elif data_type == 'composite-news':
+        data_type = 'composite'
 
     data_file_pattern = f'{data_type}_{train_or_test}_*.npy'
     dataset_paths = list(pathlib.Path(data_dir).glob(data_file_pattern))
@@ -81,11 +94,60 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
     return data_files_exist
 
 
-def collate_news_articles(start_date, end_date, summaries, train_split=0.9):
-    if summaries:
+def create_composite_dataset(distinct=True, train_split=0.9):
+    # collect articles part of composite dataset (from JSONL files)
+    print(f"\t* Preparing data from source: BBC News articles")
+    dataset_path = collate_news_articles(2022, 2022, summaries=False, train_split=1.0, composite=True)
+    articles_dataset_path = os.path.join(dataset_path, 'train_news.csv')
+
+    # collect transcripts part of dataset
+    dataset_path = collate_news_transcripts(train_split=train_split, composite=True)
+    transcripts_dataset_path = os.path.join(dataset_path, 'train_transcripts.csv')
+
+    # format two news datasets
+    articles_data = pd.read_csv(articles_dataset_path)
+    articles_data.dropna(inplace=True)
+    articles_data.reset_index(drop=True, inplace=True)
+
+    transcripts_data = pd.read_csv(transcripts_dataset_path)
+    transcripts_data.dropna(inplace=True)
+    transcripts_data.reset_index(drop=True, inplace=True)
+
+    # combine two news datasets together
+    # if not distinct:
+    composite_data = pd.concat([articles_data, transcripts_data], ignore_index=True)
+    composite_data = composite_data.sample(frac=1).reset_index(drop=True)
+    del articles_data
+    del transcripts_data
+
+    # save composite dataset to csv file
+    csv_path_train = os.path.join(dataset_path, 'train_composite.csv')
+    composite_data.to_csv(csv_path_train, index=False)
+    del composite_data
+
+    # create test dataset (just transcripts)
+    transcripts_dataset_path_test = os.path.join(dataset_path, 'test_transcripts.csv')
+    transcripts_test = pd.read_csv(transcripts_dataset_path_test)
+    transcripts_test.dropna(inplace=True)
+    transcripts_test.reset_index(drop=True, inplace=True)
+
+    csv_path_test = os.path.join(dataset_path, 'test_composite.csv')
+    transcripts_test.to_csv(csv_path_test, index=False)
+    del transcripts_test
+
+    return dataset_path
+
+
+def collate_news_articles(start_date, end_date, summaries, train_split=0.9, composite=False):
+    if composite:
+        summary_or_body = 'body'
+        dataset_path = os.path.join(PATH, f'composite-news')
+    elif summaries:
         summary_or_body = 'summary'
+        dataset_path = os.path.join(PATH, f'news-summaries')
     else:
         summary_or_body = 'body'
+        dataset_path = os.path.join(PATH, f'news-{start_date}-{end_date}')
 
     print(f"\n> Assembling news article {summary_or_body[:-1]}ies:")
     news_datasets = [f'news_{date}.jsonl' for date in range(start_date, end_date + 1)]
@@ -113,11 +175,6 @@ def collate_news_articles(start_date, end_date, summaries, train_split=0.9):
     del articles
 
     # save train/test data to csv
-    if summaries:
-        dataset_path = os.path.join(PATH, f'news-summaries')
-    else:
-        dataset_path = os.path.join(PATH, f'news-{start_date}-{end_date}')
-
     pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
 
     train = pd.DataFrame(train, columns=['text'])
@@ -135,7 +192,7 @@ def collate_news_articles(start_date, end_date, summaries, train_split=0.9):
     return dataset_path
 
 
-def collate_news_transcripts(train_split=0.9):
+def collate_news_transcripts(train_split=0.9, composite=False):
     # input transcripts from json files
     print(f"\n> Assembling news transcripts:")
     news_datasets = ['transcripts_2014-17.json', 'transcripts_2020.json']
@@ -167,7 +224,11 @@ def collate_news_transcripts(train_split=0.9):
     del articles
 
     # save train/test data to csv
-    dataset_path = os.path.join(PATH, f'news-transcripts')
+    if composite:
+        dataset_path = os.path.join(PATH, f'composite-news')
+    else:
+        dataset_path = os.path.join(PATH, f'news-transcripts')
+
     pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
 
     train = pd.DataFrame(train, columns=['text'])

@@ -75,7 +75,6 @@ def prepare_data(source='reviews', train_or_test='train', validation=True, print
     token_data = load_datasets(source, train_or_test)
 
     # remove any invalid labels
-    print("\t* Cleaning labels")
     clean_up_labels(token_data, VALID_LABELS)
 
     # split train/test datasets, convert each to a text file, and print dataset stats if desired
@@ -120,6 +119,8 @@ def load_datasets(data_dir='reviews', train_or_test='train'):
         data_type = 'news'
     elif data_dir[:9] == 'news-tran':
         data_type = 'transcripts'
+    elif data_dir[:4] == 'comp':
+        data_type = 'composite'
     else:
         data_type = data_dir
 
@@ -153,6 +154,7 @@ def clean_up_labels(dataset, valid_labels):
 
     In addition prepares observations for training.
     """
+    print("\t* Cleaning labels")
     for ix, i in enumerate(dataset):
         for tok in i:
             tok[0] = ix
