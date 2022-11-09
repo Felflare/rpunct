@@ -15,45 +15,15 @@ if __name__ == "__main__":
     test_parser = subparsers.add_parser('test', help='Execute model testing process.')
     punct_parser = subparsers.add_parser('punct', help='Run rpunct on a given input of plaintext.')
 
+    # PREP_DATA.PY
+    # Data subparsers
+    data_source_subparsers = data_parser.add_subparsers(help="Specify type of data to be prepared.", dest="data")
+    reviews_data_subparser = data_source_subparsers.add_parser('reviews', help='Yelp reviews dataset.')
+    news_data_subparser = data_source_subparsers.add_parser('news', help='BBC News articles dataset.')
+    transcripts_data_subparser = data_source_subparsers.add_parser('news-transcripts', help='BBC News transcripts dataset.')
+    composite_data_subparser = data_source_subparsers.add_parser('composite', help='Composite dataset including data from multiple sources (e.g. articles and transcripts).')
+
     # Data arguments
-    data_parser.add_argument(
-        '-d',
-        '--data',
-        metavar='DATA',
-        type=str,
-        choices=['news', 'reviews', 'news-transcripts', 'news-trans', 'composite-news', 'comp-news'],
-        default='news',
-        help="Specify the dataset to be used to test the model: BBC News (`news`) or Yelp reviews (`reviews`) - default is BBC News."
-    )
-
-    data_parser.add_argument(
-        '-s',
-        '--start',
-        metavar='YEAR',
-        type=str,
-        choices=[str(year) for year in range(2014, 2023)],
-        default='2014',
-        help="Specify the start year of the range of news articles you want to input as the dataset - default is 2014."
-    )
-
-    data_parser.add_argument(
-        '-e',
-        '--end',
-        metavar='YEAR',
-        type=str,
-        choices=[str(year) for year in range(2014, 2023)],
-        default='2022',
-        help="Specify the end year of the range of news articles you want to input as the dataset - default is 2022."
-    )
-
-    data_parser.add_argument(
-        '-sm',
-        '--sum',
-        action='store_true',
-        default=False,
-        help="Toggle between BBC News article summaries and bodies - default is bodies."
-    )
-
     data_parser.add_argument(
         '-sp',
         '--split',
@@ -64,13 +34,53 @@ if __name__ == "__main__":
         help="Specify the train-test split to be implemented (TRAIN perc. of data for training, TEST for testing) - default is 90:10."
     )
 
+    news_data_subparser.add_argument(
+        '-s',
+        '--start',
+        metavar='YEAR',
+        type=str,
+        choices=[str(year) for year in range(2014, 2023)],
+        default='2014',
+        help="Specify the start year of the range of news articles you want to input as the dataset - default is 2014."
+    )
+
+    news_data_subparser.add_argument(
+        '-e',
+        '--end',
+        metavar='YEAR',
+        type=str,
+        choices=[str(year) for year in range(2014, 2023)],
+        default='2022',
+        help="Specify the end year of the range of news articles you want to input as the dataset - default is 2022."
+    )
+
+    news_data_subparser.add_argument(
+        '-sm',
+        '--sum',
+        action='store_true',
+        default=False,
+        help="Toggle between BBC News article summaries and bodies - default is bodies."
+    )
+
+    composite_data_subparser.add_argument(
+        '-d',
+        '--datasets',
+        metavar='DATASET',
+        action='store',
+        nargs='+',
+        type=str,
+        default=['news-articles', 'news-transcripts'],
+        help="Specify the 2+ data sources to merge into the composite dataset - required."
+    )
+
+
     # Training arguments
     train_parser.add_argument(
         '-d',
         '--data',
         metavar='DATA',
         type=str,
-        choices=['reviews', 'news-summaries', 'news-sum', 'composite-news', 'comp-news', 'news-transcripts', 'news-trans'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
+        choices=['reviews', 'news-summaries', 'composite-news', 'news-transcripts'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
         default='news-2014-2022',
         help="Specify the (path to the) dataset to be used to test the model: BBC News (`news-startyr-endyr`) or Yelp reviews (`reviews`) - default is BBC News 2014-2022."
     )
@@ -216,22 +226,42 @@ if __name__ == "__main__":
         )
 
     else:
-        # expand any shortened input keywords
-        if args.data == 'news-sum':
-            args.data = 'news-summaries'
-        elif args.data == 'news-trans':
-            args.data = 'news-transcripts'
-        elif args.data == 'comp-news':
-            args.data = 'composite-news'
+        # whilst just dealing with composite news datasets keep this line (delete later)
+        if args.data == 'composite': args.data = 'composite-news'
 
         # Run the pipeline for the ML processing stage selected (data prep, train, test)
         if args.stage == 'data':
             # error checking
-            if args.end < args.start:
-                raise ValueError("End year of news data range must not be earlier than start year")
+            if args.data == 'news':
+                if args.end < args.start:
+                    raise ValueError("End year of news data range must not be earlier than start year.")
+
+            elif args.data == 'composite-news':
+                if len(args.datasets) < 2:
+                    raise ValueError(f"If specifying a composite dataset, at least two data sources must be specified (to merge together). You only specified {len(args.datasets)}.")
 
             # run data preparation pipeline
-            e2e_data(args.data, args.start, args.end, args.sum, args.split)
+            if args.data == 'news':
+                e2e_data(
+                    data_type=args.data,
+                    start_year=args.start,
+                    end_year=args.end,
+                    summaries=args.sum,
+                    tt_split=args.split
+                )
+
+            elif args.data == 'composite-news':
+                e2e_data(
+                    data_type=args.data,
+                    composite_datasets=args.datasets,
+                    tt_split=args.split
+                )
+
+            else:  # currently (args.data == 'reviews') and (args.data == 'news-transcripts')
+                e2e_data(
+                    data_type=args.data,
+                    tt_split=args.split
+                )
 
         elif args.stage in ['train', 'test']:
             # run data preparation pipeline if dataset does not exist

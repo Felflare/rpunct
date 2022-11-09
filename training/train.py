@@ -64,11 +64,11 @@ def prepare_data(source='reviews', train_or_test='train', validation=True, print
     # check if txt files have been built already
     if os.path.exists(train_set_path):
         if validation and os.path.exists(val_set_path):
-            print(f"\t* Training dataset exists: {train_set_path}")
+            print(f"\t* {train_or_test.capitalize()}ing dataset exists: {train_set_path}")
             print(f"\t* Validation dataset exists: {val_set_path}")
             return
         elif not validation:
-            print(f"\t* Training dataset exists: {train_set_path}")
+            print(f"\t* {train_or_test.capitalize()}ing dataset exists: {train_set_path}")
             return
 
     # load formatted data generated through `prep_data.py`

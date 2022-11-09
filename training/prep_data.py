@@ -19,7 +19,7 @@ PATH = './training/datasets/'
 WORDS_PER_FILE = 15000000
 
 
-def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10'):
+def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, composite_datasets=None, tt_split='90:10'):
     """
     Full pipeline for compiling and formatting training data from BBC News articles or Yelp reviews
     """
@@ -286,6 +286,9 @@ def create_rpunct_dataset(path, data_type, split):
     data_split = pd.read_csv(data_split_path)
     data_split.dropna(inplace=True)
     data_split.reset_index(drop=True, inplace=True)
+
+    # if we are dealing with a composite dataset of distinct parts, split the prep of each to be processed separately
+
 
     # constuct df of text and labels (punctuation tag per word)
     all_records = []
