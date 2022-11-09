@@ -21,7 +21,7 @@ if __name__ == "__main__":
         '--data',
         metavar='DATA',
         type=str,
-        choices=['news', 'reviews', 'news-transcripts', 'composite-news', 'comp-news'],
+        choices=['news', 'reviews', 'news-transcripts', 'news-trans', 'composite-news', 'comp-news'],
         default='news',
         help="Specify the dataset to be used to test the model: BBC News (`news`) or Yelp reviews (`reviews`) - default is BBC News."
     )

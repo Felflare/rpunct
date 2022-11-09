@@ -49,7 +49,7 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
         print(f"\n> Preparing data from source: BBC News articles & transcripts")
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
-        dataset_path = create_composite_dataset(distinct=False, train_split=split)
+        dataset_path = create_composite_dataset(train_split=split)
         data_type = 'composite'
 
     else:
@@ -96,7 +96,6 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
 
 def create_composite_dataset(distinct=True, train_split=0.9):
     # collect articles part of composite dataset (from JSONL files)
-    print(f"\t* Preparing data from source: BBC News articles")
     dataset_path = collate_news_articles(2022, 2022, summaries=False, train_split=1.0, composite=True)
     articles_dataset_path = os.path.join(dataset_path, 'train_news.csv')
 
@@ -114,9 +113,14 @@ def create_composite_dataset(distinct=True, train_split=0.9):
     transcripts_data.reset_index(drop=True, inplace=True)
 
     # combine two news datasets together
-    # if not distinct:
-    composite_data = pd.concat([articles_data, transcripts_data], ignore_index=True)
-    composite_data = composite_data.sample(frac=1).reset_index(drop=True)
+    if distinct:
+        articles_data['source'] = 'articles'
+        transcripts_data['source'] = 'transcripts'
+        composite_data = pd.concat([articles_data, transcripts_data], ignore_index=True)
+    else:
+        composite_data = pd.concat([articles_data, transcripts_data], ignore_index=True)
+        composite_data = composite_data.sample(frac=1).reset_index(drop=True)
+
     del articles_data
     del transcripts_data
 
@@ -217,7 +221,7 @@ def collate_news_transcripts(train_split=0.9, composite=False):
     split = math.ceil(train_split * len(articles))
     train = articles[:split]
     test = articles[split:]
-    print(f"\t* {train_split:.2f}:{1-train_split:.2f} data split")
+    print(f"\t* {train_split:.1f} : {1-train_split:.1f} data split")
     print(f"\t* Speaker segments in total    : {len(articles)}")
     print(f"\t* Speaker segments in train set: {len(train)}")
     print(f"\t* Speaker segments in test set : {len(test)}")
