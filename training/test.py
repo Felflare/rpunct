@@ -52,7 +52,7 @@ def e2e_test(models, data_source='reviews', use_cuda=True, print_stats=False, ou
         print(f"\n\t* Results: {metrics}")
         del model
         all_metrics.append(metrics)
-        print('it complete')
+        del metrics
 
     compare_models(all_metrics, models, out_png=output_file, data_type=data_source)
 

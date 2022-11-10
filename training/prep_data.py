@@ -46,13 +46,17 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
         dataset_path = collate_news_transcripts(train_split=split)
 
     elif data_type == 'composite-news':
+        # error checking
+        if composite_data_distinctness and len(composite_datasets_list) != 2:
+            raise ValueError("If building distinct composite datasets, you must specify exactly TWO included datasets (one for pre-training, one for fine-tuning).")
+
         # create composte dataset of BBC News articles and transcripts
         print(f"\n> Preparing data from source: BBC News articles & transcripts")
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
 
         data_type = 'composite'
-        dataset_path = create_composite_dataset(distinct=composite_data_distinctness, train_split=split)
+        dataset_path = create_composite_dataset(distinct=composite_data_distinctness, train_split=split, dataset_names=composite_datasets_list)
 
     else:
         raise ValueError("Unrecognised data source!")
@@ -62,7 +66,7 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
         print(f"\n> Generating dataset: {key.upper()}")
 
         # constuct df of text and labels (punctuation tag per word)
-        rpunct_dataset = create_rpunct_dataset(dataset_path, data_type, key, composite_and_distinct=composite_data_distinctness)
+        rpunct_dataset = create_rpunct_dataset(dataset_path, data_type, key, composite_and_distinct=composite_data_distinctness, dataset_names=composite_datasets_list)
 
         # split data into chunks for model
         primary_rpunct_dataset = rpunct_dataset['A']
@@ -73,10 +77,9 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
         total_words += create_training_samples(primary_rpunct_dataset, output_file, file_out_path=dataset_path, train_or_test=key)
 
         # if composite dataset of distinct parts, split/format the fine-tuning half of the data
-        if secondary_rpunct_dataset is not None:
+        if secondary_rpunct_dataset != []:
             output_file = f"{data_type}_{key}_finetuning"
             total_words += create_training_samples(secondary_rpunct_dataset, output_file, file_out_path=dataset_path, train_or_test=key)
-
 
     print("\n> Data generation complete")
     print(f"\t* Total no. words in both datasets: {total_words}", end='\n\n')
@@ -105,52 +108,60 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
     return data_files_exist
 
 
-def create_composite_dataset(distinct=True, train_split=0.9):
-    # collect articles part of composite dataset (from JSONL files)
-    dataset_path = collate_news_articles(2022, 2022, summaries=False, train_split=1.0, composite=True)
-    articles_dataset_path = os.path.join(dataset_path, 'train_news.csv')
+def create_composite_dataset(distinct, train_split, dataset_names):
+    # create a collection of all individual datasets needed to construct composite datasets
+    all_datasets = []
 
-    # collect transcripts part of dataset
-    dataset_path = collate_news_transcripts(train_split=train_split, composite=True)
-    transcripts_dataset_path = os.path.join(dataset_path, 'train_transcripts.csv')
+    for name in dataset_names:
+        # collect dataset from file
+        if name == 'news-articles':
+            # collect articles part of composite dataset (from JSONL files)
+            dataset_dir = collate_news_articles(2022, 2022, summaries=False, train_split=1.0, composite=True)
+            dataset_path = os.path.join(dataset_dir, 'train_news.csv')
+        elif name == 'news-transcripts':
+            # collect transcripts part of dataset
+            dataset_dir = collate_news_transcripts(train_split=train_split, composite=True)
+            dataset_path = os.path.join(dataset_dir, 'train_transcripts.csv')
 
-    # format two news datasets
-    articles_data = pd.read_csv(articles_dataset_path)
-    articles_data.dropna(inplace=True)
-    articles_data.reset_index(drop=True, inplace=True)
+            # only construct testing data from transcripts dataset
+            test_dataset_path_input = os.path.join(dataset_dir, 'test_transcripts.csv')
+            transcripts_test = pd.read_csv(test_dataset_path_input)
+            transcripts_test.dropna(inplace=True)
+            transcripts_test.reset_index(drop=True, inplace=True)
 
-    transcripts_data = pd.read_csv(transcripts_dataset_path)
-    transcripts_data.dropna(inplace=True)
-    transcripts_data.reset_index(drop=True, inplace=True)
+            test_dataset_path_output = os.path.join(dataset_dir, 'test_composite.csv')
+            transcripts_test.to_csv(test_dataset_path_output, index=False)
+            del transcripts_test
+        else:
+            raise ValueError("Composite dataset cannot be built with unknown source datasets.")
+
+        # format dataset
+        dataset = pd.read_csv(dataset_path)
+        dataset.dropna(inplace=True)
+        dataset.reset_index(drop=True, inplace=True)
+
+        # if wanting to create distinct composite dataset (i.e. separate pre-train/tune) then label each dataset to be split up later
+        if distinct:
+            dataset['source'] = name
+
+        # add to dataset collection
+        all_datasets.append(dataset.copy())
+        del dataset
 
     # combine two news datasets together
-    if distinct:
-        articles_data['source'] = 'articles'
-        transcripts_data['source'] = 'transcripts'
-        composite_data = pd.concat([articles_data, transcripts_data], ignore_index=True)
-    else:
-        composite_data = pd.concat([articles_data, transcripts_data], ignore_index=True)
+    composite_data = pd.concat(all_datasets, ignore_index=True)
+    del all_datasets
+
+    # shuffle samples (not necessary if splitting into distinct composite datasets)
+    if not distinct:
         composite_data = composite_data.sample(frac=1).reset_index(drop=True)
 
-    del articles_data
-    del transcripts_data
-
     # save composite dataset to csv file
-    csv_path_train = os.path.join(dataset_path, 'train_composite.csv')
+    csv_path_train = os.path.join(dataset_dir, 'train_composite.csv')
     composite_data.to_csv(csv_path_train, index=False)
     del composite_data
 
-    # create test dataset (just transcripts)
-    transcripts_dataset_path_test = os.path.join(dataset_path, 'test_transcripts.csv')
-    transcripts_test = pd.read_csv(transcripts_dataset_path_test)
-    transcripts_test.dropna(inplace=True)
-    transcripts_test.reset_index(drop=True, inplace=True)
-
-    csv_path_test = os.path.join(dataset_path, 'test_composite.csv')
-    transcripts_test.to_csv(csv_path_test, index=False)
-    del transcripts_test
-
-    return dataset_path
+    return dataset_dir
 
 
 def collate_news_articles(start_date, end_date, summaries, train_split=0.9, composite=False):
@@ -291,7 +302,7 @@ def download_reviews():
     return dataset_path
 
 
-def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False):
+def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, dataset_names=None):
     # load in train/test data
     data_split_path = os.path.join(path, f'{split}_{data_type}.csv')
     data_split = pd.read_csv(data_split_path)
@@ -299,38 +310,36 @@ def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False):
     data_split.reset_index(drop=True, inplace=True)
 
     # if we are dealing with a composite dataset of distinct parts, split the prep of each to be processed separately
-    if composite_and_distinct:
+    if composite_and_distinct and split == 'train':
         # segment distinct articles and transcripts datasets (from composite dataset)
-        first_dataset, second_dataset = 'articles', 'transcripts'
-        datasetA = data_split[data_split['source'] == first_dataset]['text']
-        datasetB = data_split[data_split['source'] == second_dataset]['text']
+        datasets = []
+        for name in dataset_names:
+            datasets.append(
+                data_split[data_split['source'] == name]['text']
+            )
 
-        # create labels for transcripts dataset
-        recordsB = []
-        with tqdm(datasetB) as T:
-            for article in T:
-                T.set_description("        * Labelling data instances")
-                records = create_record(article)  # create a list enumerating each word in a single article and its label: [...{id, word, label}...]
-                recordsB.extend(records)
-                del records
     else:
-        datasetA = data_split['text']
-        recordsB = None
+        datasets = [
+            data_split['text']
+        ]
 
-    # constuct df of text and labels (punctuation tag per word)
-    recordsA = []
-    with tqdm(datasetA) as T:
-        for article in T:
-            T.set_description("        * Labelling data instances (fine-tuning)")
-            records = create_record(article)  # create a list enumerating each word in a single article and its label: [...{id, word, label}...]
-            recordsA.extend(records)
-            del records
-
-    return {
-        'A': recordsA,
-        'B': recordsB
+    # create records for each dataset part of the composite (if integrated, 'A' == all data; if distinct, 'A' == pre-training and 'B' == fine-tuning)
+    all_records = {
+        'A': [],
+        'B': []
     }
 
+    # constuct df of text and labels (punctuation tag per word) for primary (and possibly secondary) dataset
+    for d in range(len(datasets)):
+        with tqdm(datasets[d]) as T:
+            for article in T:
+                T.set_description(f"        * Labelling {split}ing instances ({d})")
+                record = create_record(article)  # create a list enumerating each word in a single article and its label: [...{id, word, label}...]
+                record_index = list(all_records.keys())[d]
+                all_records[record_index].extend(record)
+                del record
+
+    return all_records
 
 def create_record(row):
     """

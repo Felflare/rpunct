@@ -63,14 +63,22 @@ if __name__ == "__main__":
     )
 
     composite_data_subparser.add_argument(
-        '-d',
-        '--datasets',
+        '-i',
+        '--include',
         metavar='DATASET',
         action='store',
         nargs='+',
         type=str,
         default=['news-articles', 'news-transcripts'],
-        help="Specify the 2+ data sources to merge into the composite dataset - required."
+        help="Specify the 2+ data sources to include in the composite dataset - default is news articles and transcripts."
+    )
+
+    composite_data_subparser.add_argument(
+        '-d',
+        '--distinct',
+        action='store_true',
+        default=False,
+        help="Toggle between an integrated composite dataset and distinct datasets for pre-training / fine-tuning - default is integrated."
     )
 
 
@@ -237,7 +245,7 @@ if __name__ == "__main__":
                     raise ValueError("End year of news data range must not be earlier than start year.")
 
             elif args.data == 'composite-news':
-                if len(args.datasets) < 2:
+                if len(args.include) < 2:
                     raise ValueError(f"If specifying a composite dataset, at least two data sources must be specified (to merge together). You only specified {len(args.datasets)}.")
 
             # run data preparation pipeline
@@ -253,8 +261,9 @@ if __name__ == "__main__":
             elif args.data == 'composite-news':
                 e2e_data(
                     data_type=args.data,
-                    composite_datasets=args.datasets,
-                    tt_split=args.split
+                    tt_split=args.split,
+                    composite_datasets_list=args.include,
+                    composite_data_distinctness=args.distinct
                 )
 
             else:  # currently (args.data == 'reviews') and (args.data == 'news-transcripts')
