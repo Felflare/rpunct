@@ -19,7 +19,7 @@ PATH = './training/datasets/'
 WORDS_PER_FILE = 15000000
 
 
-def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, composite_datasets=None, tt_split='90:10'):
+def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10', composite_datasets_list=None, composite_data_distinctness=False):
     """
     Full pipeline for compiling and formatting training data from BBC News articles or Yelp reviews
     """
@@ -41,16 +41,18 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
         print(f"\n> Preparing data from source: BBC News transcripts")
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
-        dataset_path = collate_news_transcripts(train_split=split)
+
         data_type = 'transcripts'
+        dataset_path = collate_news_transcripts(train_split=split)
 
     elif data_type == 'composite-news':
         # create composte dataset of BBC News articles and transcripts
         print(f"\n> Preparing data from source: BBC News articles & transcripts")
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
-        dataset_path = create_composite_dataset(train_split=split)
+
         data_type = 'composite'
+        dataset_path = create_composite_dataset(distinct=composite_data_distinctness, train_split=split)
 
     else:
         raise ValueError("Unrecognised data source!")
@@ -58,14 +60,23 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
     total_words = 0
     for key in ['train', 'test']:
         print(f"\n> Generating dataset: {key.upper()}")
+
         # constuct df of text and labels (punctuation tag per word)
-        rpunct_dataset = create_rpunct_dataset(dataset_path, data_type, key)
+        rpunct_dataset = create_rpunct_dataset(dataset_path, data_type, key, composite_and_distinct=composite_data_distinctness)
 
         # split data into chunks for model
-        print("\t* Generating data samples")
-        output_file = f"{data_type}_{key}"
-        total_words += create_training_samples(rpunct_dataset, output_file, file_out_path=dataset_path, train_or_test=key)
+        primary_rpunct_dataset = rpunct_dataset['A']
+        secondary_rpunct_dataset = rpunct_dataset['B']
         del rpunct_dataset
+
+        output_file = f"{data_type}_{key}"
+        total_words += create_training_samples(primary_rpunct_dataset, output_file, file_out_path=dataset_path, train_or_test=key)
+
+        # if composite dataset of distinct parts, split/format the fine-tuning half of the data
+        if secondary_rpunct_dataset is not None:
+            output_file = f"{data_type}_{key}_finetuning"
+            total_words += create_training_samples(secondary_rpunct_dataset, output_file, file_out_path=dataset_path, train_or_test=key)
+
 
     print("\n> Data generation complete")
     print(f"\t* Total no. words in both datasets: {total_words}", end='\n\n')
@@ -280,7 +291,7 @@ def download_reviews():
     return dataset_path
 
 
-def create_rpunct_dataset(path, data_type, split):
+def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False):
     # load in train/test data
     data_split_path = os.path.join(path, f'{split}_{data_type}.csv')
     data_split = pd.read_csv(data_split_path)
@@ -288,18 +299,37 @@ def create_rpunct_dataset(path, data_type, split):
     data_split.reset_index(drop=True, inplace=True)
 
     # if we are dealing with a composite dataset of distinct parts, split the prep of each to be processed separately
+    if composite_and_distinct:
+        # segment distinct articles and transcripts datasets (from composite dataset)
+        first_dataset, second_dataset = 'articles', 'transcripts'
+        datasetA = data_split[data_split['source'] == first_dataset]['text']
+        datasetB = data_split[data_split['source'] == second_dataset]['text']
 
+        # create labels for transcripts dataset
+        recordsB = []
+        with tqdm(datasetB) as T:
+            for article in T:
+                T.set_description("        * Labelling data instances")
+                records = create_record(article)  # create a list enumerating each word in a single article and its label: [...{id, word, label}...]
+                recordsB.extend(records)
+                del records
+    else:
+        datasetA = data_split['text']
+        recordsB = None
 
     # constuct df of text and labels (punctuation tag per word)
-    all_records = []
-    with tqdm(data_split['text']) as T:
+    recordsA = []
+    with tqdm(datasetA) as T:
         for article in T:
-            T.set_description("        * Labelling data instances")
+            T.set_description("        * Labelling data instances (fine-tuning)")
             records = create_record(article)  # create a list enumerating each word in a single article and its label: [...{id, word, label}...]
-            all_records.extend(records)
+            recordsA.extend(records)
             del records
 
-    return all_records
+    return {
+        'A': recordsA,
+        'B': recordsB
+    }
 
 
 def create_record(row):
@@ -343,7 +373,7 @@ def create_record(row):
     return new_obs
 
 
-def create_training_samples(words_and_labels, file_out_nm='train_data', file_out_path=PATH, train_or_test='train', size=WORDS_PER_FILE):
+def create_training_samples(words_and_labels, file_out_nm, file_out_path=PATH, train_or_test='train', size=WORDS_PER_FILE):
     """
     Given a looong list of tokens, splits them into 500 token chunks
     thus creating observations. This is for fine-tuning with simpletransformers
@@ -355,9 +385,10 @@ def create_training_samples(words_and_labels, file_out_nm='train_data', file_out
 
     # determine number of output files dependent on size of dataset
     num_splits = math.ceil(num_words / size)
+    print("\t* Formatting data files:")
     print(f"\t\t- No. words in {train_or_test} set: {num_words}")
 
-    # segment data into `num_splits` chunks
+    # segment primary dataset into `num_splits` chunks
     while _round < num_splits:
         # locate the `_round`th chunk of dicts
         records = words_and_labels[size * _round: size * (_round + 1)]

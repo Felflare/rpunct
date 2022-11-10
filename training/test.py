@@ -49,9 +49,10 @@ def e2e_test(models, data_source='reviews', use_cuda=True, print_stats=False, ou
         # test model after its been fully trained
         test_data_txt = os.path.join(PATH, data_source, 'rpunct_test_set.txt')
         metrics, _, _ = model.eval_model(test_data_txt, output_dir=RESULTS_PATH)
+        print(f"\n\t* Results: {metrics}")
         del model
         all_metrics.append(metrics)
-        print(f"\n\t* Results: {metrics}")
+        print('it complete')
 
     compare_models(all_metrics, models, out_png=output_file, data_type=data_source)
 
