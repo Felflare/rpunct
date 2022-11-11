@@ -112,6 +112,14 @@ if __name__ == "__main__":
     )
 
     train_parser.add_argument(
+        '-ft',
+        '--finetune',
+        action='store_true',
+        default=False,
+        help="Toggle on fine-tuning training round after initial pre-training stage - default is off."
+    )
+
+    train_parser.add_argument(
         '-c',
         '--cuda',
         action='store_true',
@@ -235,7 +243,8 @@ if __name__ == "__main__":
 
     else:
         # whilst just dealing with composite news datasets keep this line (delete later)
-        if args.data == 'composite': args.data = 'composite-news'
+        if args.data == 'composite':
+            args.data = 'composite-news'
 
         # Run the pipeline for the ML processing stage selected (data prep, train, test)
         if args.stage == 'data':
@@ -279,19 +288,31 @@ if __name__ == "__main__":
                 summaries = False
             elif args.data[:8] == 'news-sum':  # summaries
                 data_type, summaries, data_start, data_end = 'news', True, '', ''
-            else:  # transcripts etc.
+            else:  # transcripts, composite, etc.
                 data_type, summaries, data_start, data_end = args.data, False, '', ''
+
+            if args.stage == 'test':
+                args.finetune = False
 
             dataset_exists = check_data_exists(
                 data_type=data_type,
                 train_or_test=args.stage,
                 start_date=data_start,
                 end_date=data_end,
-                summaries=summaries
+                summaries=summaries,
+                finetuning=args.finetune
             )
 
             if not dataset_exists:
-                e2e_data(data_type, data_start, data_end, summaries)
+                composite_datasets = ['news-articles', 'news-transcripts']
+                e2e_data(
+                    data_type=data_type,
+                    start_year=data_start,
+                    end_year=data_end,
+                    summaries=summaries,
+                    composite_datasets_list=composite_datasets,
+                    composite_data_distinctness=args.finetune
+                )
 
             if args.stage == 'train':
                 # run pipeline to build and train language model
@@ -301,7 +322,8 @@ if __name__ == "__main__":
                     validation=args.val,
                     dataset_stats=args.stats,
                     training_plot=args.plot,
-                    epochs=args.epochs
+                    epochs=args.epochs,
+                    conduct_fine_tuning=args.finetune
                 )
             else:  # args.stage == 'test'
                 # run model testing pipeline

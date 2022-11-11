@@ -22,7 +22,7 @@ VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U'
 PATH = './training/datasets/'
 
 
-def e2e_train(data_source='reviews', use_cuda=True, validation=False, dataset_stats=False, training_plot=False, epochs=3):
+def e2e_train(data_source='reviews', use_cuda=True, validation=False, dataset_stats=False, training_plot=False, epochs=3, conduct_fine_tuning=False):
     """
     Training pipeline to format training dataset, build model, and train it.
     """
@@ -44,31 +44,48 @@ def e2e_train(data_source='reviews', use_cuda=True, validation=False, dataset_st
     if validation and training_plot:
         plot_training(tr_details)
 
+    # if using composite dataset (of distinct parts) prepare fine-tuning data and run fine-tuning
+    if conduct_fine_tuning:
+        # generate correctly formatted training data
+        print(f"\n> Preparing fine-tuning data from source: {data_source}")
+        prepare_data(source=data_source, train_or_test='train_finetuning')
+
+        # create a simpletransformer model and use data to train it
+        print("\n> Fine-tuning model:")
+        model, steps, tr_details = train_model(
+            model,
+            data_dir=data_source,
+            train_data_txt='rpunct_train_finetuning_set.txt',
+            use_cuda=use_cuda,
+            epochs=epochs
+        )
+        print(f"\n\t* Steps: {steps}; Train details: {tr_details}")
+
     print("\n> Model training complete", end='\n\n')
 
     return model
 
 
-def prepare_data(source='reviews', train_or_test='train', validation=True, print_stats=False):
+def prepare_data(source='reviews', train_or_test='train', validation=False, print_stats=False):
     """
     Prepares data from Original text into Connnl formatted datasets ready for training
     In addition constraints label space to only labels we care about
     """
     # create dataset paths
     output_txt = f'rpunct_{train_or_test}_set.txt'
-    train_set_path = os.path.join(PATH, source, output_txt)
+    dataset_path = os.path.join(PATH, source, output_txt)
 
     val_output_txt='rpunct_val_set.txt'
     val_set_path = os.path.join(PATH, source, val_output_txt)
 
     # check if txt files have been built already
-    if os.path.exists(train_set_path):
+    if os.path.exists(dataset_path):
         if validation and os.path.exists(val_set_path):
-            print(f"\t* {train_or_test.capitalize()}ing dataset exists: {train_set_path}")
+            print(f"\t* {train_or_test.replace('_', ' ').capitalize()}ing dataset exists: {dataset_path}")
             print(f"\t* Validation dataset exists: {val_set_path}")
             return
         elif not validation:
-            print(f"\t* {train_or_test.capitalize()}ing dataset exists: {train_set_path}")
+            print(f"\t* {train_or_test.replace('_', ' ').capitalize()}ing dataset exists: {dataset_path}")
             return
 
     # load formatted data generated through `prep_data.py`
@@ -90,10 +107,10 @@ def prepare_data(source='reviews', train_or_test='train', validation=True, print
     else:
         train_set = token_data.copy()
 
-    print(f"\t* {train_or_test.capitalize()}ing dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
+    print(f"\t* {train_or_test.replace('_', ' ').capitalize()}ing dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
 
     # format training set as Connl NER txt file
-    create_text_file(train_set, train_set_path)
+    create_text_file(train_set, dataset_path)
 
     # dataset statistics
     if print_stats:
@@ -205,7 +222,7 @@ def get_label_stats(dataset):
     return output.reset_index(drop=True)
 
 
-def train_model(data_dir='reviews', train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_set.txt', use_cuda=True, validation=True, epochs=3):
+def train_model(model=None, data_dir='reviews', train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_set.txt', use_cuda=True, validation=False, epochs=3):
     """
     Trains simpletransformers model.
     Args:
@@ -215,23 +232,26 @@ def train_model(data_dir='reviews', train_data_txt='rpunct_train_set.txt', val_d
         - validation (bool): Toggle to exploit validation set during training (validates performance every 5000 steps).
     """
     # Create a NERModel
-    print("\t* Building NER model", end='\n\n')
-    model = NERModel(
-        "bert",
-        "bert-base-uncased",
-        labels=VALID_LABELS,
-        use_cuda=use_cuda,
-        args={
-            "evaluate_during_training": validation,
-            "evaluate_during_training_steps": 5000,
-            "overwrite_output_dir": True,
-            "num_train_epochs": epochs,
-            "max_seq_length": 512,
-            "lazy_loading": True,
-            "save_steps": -1,
-            "save_model_every_epoch": True
-        }
-    )
+    if model is None:
+        print("\t* Building NER model", end='\n\n')
+        model = NERModel(
+            "bert",
+            "bert-base-uncased",
+            labels=VALID_LABELS,
+            use_cuda=use_cuda,
+            args={
+                "evaluate_during_training": validation,
+                "evaluate_during_training_steps": 5000,
+                "overwrite_output_dir": True,
+                "num_train_epochs": epochs,
+                "max_seq_length": 512,
+                "lazy_loading": True,
+                "save_steps": -1,
+                "save_model_every_epoch": True
+            }
+        )
+    else:
+        print("\t* Loading NER model", end='\n\n')
 
     # Train the model
     train_data_path = os.path.join(PATH, data_dir, train_data_txt)
@@ -264,6 +284,12 @@ def plot_training(training, out_path='training/training_loss.png'):
     ax.set(ylabel='Loss', xlabel='Training step', title="Progression of Model Training")
     ax.legend(labels=keys, title="Legend")
     fig.savefig(out_path)
+
+
+def fine_tuning(model, source='composite-news', use_cuda=True, epochs=3):
+
+
+    return model
 
 
 if __name__ == "__main__":

@@ -47,7 +47,7 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
 
     elif data_type == 'composite-news':
         # error checking
-        if composite_data_distinctness and len(composite_datasets_list) != 2:
+        if composite_data_distinctness and (composite_datasets_list is  None or len(composite_datasets_list) != 2):
             raise ValueError("If building distinct composite datasets, you must specify exactly TWO included datasets (one for pre-training, one for fine-tuning).")
 
         # create composte dataset of BBC News articles and transcripts
@@ -85,7 +85,7 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
     print(f"\t* Total no. words in both datasets: {total_words}", end='\n\n')
 
 
-def check_data_exists(data_type='news', train_or_test='train', start_date='2014', end_date='2022', summaries=False):
+def check_data_exists(data_type='news', train_or_test='train', start_date='2014', end_date='2022', summaries=False, finetuning=False):
     # check whether the training data has been created or not yet
     if data_type == 'news':
         if summaries:
@@ -99,6 +99,9 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
         data_type = 'transcripts'
     elif data_type == 'composite-news':
         data_type = 'composite'
+
+    if finetuning:
+        train_or_test = 'train_finetuning'
 
     data_file_pattern = f'{data_type}_{train_or_test}_*.npy'
     dataset_paths = list(pathlib.Path(data_dir).glob(data_file_pattern))
