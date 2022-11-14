@@ -92,13 +92,14 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
             data_dir = os.path.join(PATH, f'news-summaries')
         else:
             data_dir = os.path.join(PATH, f'news-{start_date}-{end_date}')
+    elif data_type[:15] == 'composite-news-':
+        data_dir = os.path.join(PATH, data_type)
+        data_type = 'composite'
     else:
         data_dir = os.path.join(PATH, data_type)
 
-    if data_type == 'news-transcripts':
-        data_type = 'transcripts'
-    elif data_type == 'composite-news':
-        data_type = 'composite'
+        if data_type == 'news-transcripts':
+            data_type = 'transcripts'
 
     if finetuning:
         train_or_test = 'train_finetuning'
