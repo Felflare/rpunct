@@ -119,11 +119,11 @@ def create_composite_dataset(distinct, train_split, dataset_names):
         # collect dataset from file
         if name == 'news-articles':
             # collect articles part of composite dataset (from JSONL files)
-            dataset_dir = collate_news_articles(2022, 2022, summaries=False, train_split=1.0, composite=True)
+            dataset_dir = collate_news_articles(2022, 2022, summaries=False, train_split=1.0, composite=True, distinct_composite=distinct)
             dataset_path = os.path.join(dataset_dir, 'train_news.csv')
         elif name == 'news-transcripts':
             # collect transcripts part of dataset
-            dataset_dir = collate_news_transcripts(train_split=train_split, composite=True)
+            dataset_dir = collate_news_transcripts(train_split=train_split, composite=True, distinct_composite=distinct)
             dataset_path = os.path.join(dataset_dir, 'train_transcripts.csv')
 
             # only construct testing data from transcripts dataset
@@ -167,10 +167,16 @@ def create_composite_dataset(distinct, train_split, dataset_names):
     return dataset_dir
 
 
-def collate_news_articles(start_date, end_date, summaries, train_split=0.9, composite=False):
+def collate_news_articles(start_date, end_date, summaries, train_split=0.9, composite=False, distinct_composite=False):
     if composite:
+        if distinct_composite:
+            distinctness_tag = 'dist'
+        else:
+            distinctness_tag = 'int'
+
         summary_or_body = 'body'
-        dataset_path = os.path.join(PATH, f'composite-news')
+        dataset_path = os.path.join(PATH, f'composite-news-{distinctness_tag}')
+
     elif summaries:
         summary_or_body = 'summary'
         dataset_path = os.path.join(PATH, f'news-summaries')
@@ -221,7 +227,7 @@ def collate_news_articles(start_date, end_date, summaries, train_split=0.9, comp
     return dataset_path
 
 
-def collate_news_transcripts(train_split=0.9, composite=False):
+def collate_news_transcripts(train_split=0.9, composite=False, distinct_composite=False):
     # input transcripts from json files
     print(f"\n> Assembling news transcripts:")
     news_datasets = ['transcripts_2014-17.json', 'transcripts_2020.json']
@@ -254,7 +260,12 @@ def collate_news_transcripts(train_split=0.9, composite=False):
 
     # save train/test data to csv
     if composite:
-        dataset_path = os.path.join(PATH, f'composite-news')
+        if distinct_composite:
+            distinctness_tag = 'dist'
+        else:
+            distinctness_tag = 'int'
+
+        dataset_path = os.path.join(PATH, f'composite-news-{distinctness_tag}')
     else:
         dataset_path = os.path.join(PATH, f'news-transcripts')
 

@@ -88,7 +88,7 @@ if __name__ == "__main__":
         '--data',
         metavar='DATA',
         type=str,
-        choices=['reviews', 'news-summaries', 'composite-news', 'news-transcripts'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
+        choices=['reviews', 'news-summaries', 'composite-news-int', 'composite-news-dist', 'news-transcripts'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
         default='news-2014-2022',
         help="Specify the (path to the) dataset to be used to test the model: BBC News (`news-startyr-endyr`) or Yelp reviews (`reviews`) - default is BBC News 2014-2022."
     )
@@ -158,7 +158,7 @@ if __name__ == "__main__":
         '--data',
         metavar='DATA',
         type=str,
-        choices=['reviews', 'news-summaries', 'news-sum', 'composite-news', 'comp-news', 'news-transcripts', 'news-trans'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
+        choices=['reviews', 'news-summaries', 'news-sum', 'composite-news-int', 'composite-news-dist', 'comp-news', 'news-transcripts', 'news-trans'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
         default='news-2014-2022',
         help="Specify the (path to the) dataset to be used to test the model: BBC News (`news-startyr-endyr`) or Yelp reviews (`reviews`) - default is BBC News 2014-2022."
     )
