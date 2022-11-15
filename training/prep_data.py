@@ -259,7 +259,7 @@ def collate_news_transcripts(train_split=0.9, composite=False, distinct_composit
     print(f"\t* Speaker segments in total    : {len(transcripts)}")
     print(f"\t* Speaker segments in train set: {len(train)}")
     print(f"\t* Speaker segments in test set : {len(test)}")
-    del articles
+    del transcripts
 
     # save train/test data to csv
     if composite:
