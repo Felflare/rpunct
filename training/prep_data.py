@@ -199,9 +199,9 @@ def collate_news_articles(start_date, end_date, summaries, train_split=0.9, comp
                 del obj
 
     # train-test split
+    random.seed(42)
     random.shuffle(articles)
     split = math.ceil(train_split * len(articles))
-
     train = articles[:split]
     test = articles[split:]
 
@@ -232,7 +232,7 @@ def collate_news_transcripts(train_split=0.9, composite=False, distinct_composit
     # input transcripts from json files
     print(f"\n> Assembling news transcripts:")
     news_datasets = ['transcripts_2014-17.json', 'transcripts_2020.json']
-    articles = np.empty(shape=(0), dtype=object)
+    transcripts = np.empty(shape=(0), dtype=object)
 
     for dataset_json in news_datasets:
         json_path = os.path.join(PATH, 'news_transcripts_2014-20/', dataset_json)
@@ -240,21 +240,23 @@ def collate_news_transcripts(train_split=0.9, composite=False, distinct_composit
         with open(json_path, 'r') as f:
             obj = json.load(f)
 
-        transcriptions = pd.DataFrame(obj["Transcripts"])
-        speaker_segments = np.concatenate(transcriptions["Items"]).flat
-        articles = np.append(articles, speaker_segments)
+        data = pd.DataFrame(obj["Transcripts"])
+        speaker_segments = np.concatenate(data["Items"]).flat
+        transcripts = np.append(transcripts, speaker_segments)
 
         del obj
-        del transcriptions
+        del data
         del speaker_segments
 
     # train-test split
-    random.shuffle(articles)
-    split = math.ceil(train_split * len(articles))
-    train = articles[:split]
-    test = articles[split:]
+    random.seed(42)
+    random.shuffle(transcripts)
+    split = math.ceil(train_split * len(transcripts))
+    train = transcripts[:split]
+    test = transcripts[split:]
+
     print(f"\t* {train_split:.1f} : {1-train_split:.1f} data split")
-    print(f"\t* Speaker segments in total    : {len(articles)}")
+    print(f"\t* Speaker segments in total    : {len(transcripts)}")
     print(f"\t* Speaker segments in train set: {len(train)}")
     print(f"\t* Speaker segments in test set : {len(test)}")
     del articles
@@ -437,6 +439,7 @@ def create_training_samples(words_and_labels, file_out_nm, file_out_path=PATH, t
 
         # shuffle dataset of 500 word-label dicts
         _round += 1
+        random.seed(42)
         random.shuffle(observations)
 
         # save split of dataset to a txt file
