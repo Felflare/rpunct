@@ -19,7 +19,7 @@ PATH = './training/datasets/'
 WORDS_PER_FILE = 15000000
 
 
-def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10', composite_datasets_list=None, composite_data_distinctness=False):
+def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10', composite_datasets_list=None, composite_data_distinctness=False, dataset_balance='o'):
     """
     Full pipeline for compiling and formatting training data from BBC News articles or Yelp reviews
     """
@@ -56,7 +56,7 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
         split = int(tt_split[0]) / 100
 
         data_type = 'composite'
-        dataset_path = create_composite_dataset(distinct=composite_data_distinctness, train_split=split, dataset_names=composite_datasets_list)
+        dataset_path = create_composite_dataset(distinct=composite_data_distinctness, train_split=split, dataset_names=composite_datasets_list, balance=dataset_balance)
 
     else:
         raise ValueError("Unrecognised data source!")
@@ -112,7 +112,7 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
     return data_files_exist
 
 
-def create_composite_dataset(distinct, train_split, dataset_names):
+def create_composite_dataset(distinct, train_split, dataset_names, balance):
     # create a collection of all individual datasets needed to construct composite datasets
     all_datasets = []
 
@@ -152,7 +152,32 @@ def create_composite_dataset(distinct, train_split, dataset_names):
         all_datasets.append(dataset.copy())
         del dataset
 
-    # combine two news datasets together
+    # combine two news datasets together in proportion denoted by `balance`
+    if balance == '1:1':  # even balance
+        min_length = min(map(len, all_datasets))
+        all_datasets = [d[:min_length] for d in all_datasets]
+        print("\n> Combining datasets in 1:1 proportion")
+    elif balance == '2:1' and len(all_datasets) == 2:
+        half_len = len(all_datasets[0]) / 2
+
+        if len(all_datasets[1]) > half_len:
+            all_datasets = [all_datasets[0], all_datasets[1][:half_len]]
+            print("\n> Combining datasets in 2:1 proportion")
+        else:
+            print("\n> Combining datasets of original length")
+    elif balance == '1:2' and len(all_datasets) == 2:
+        half_len = len(all_datasets[1]) / 2
+
+        if len(all_datasets[0]) > half_len:
+            all_datasets = [all_datasets[0][:half_len], all_datasets[1]]
+            print("\n> Combining datasets of in 2:1 proportion")
+        else:
+            print("\n> Combining datasets of original length")
+    elif balance != 'o':  # `balance = 'o'` => original dataset sizes
+        print("\n> Combining datasets of original length")
+
+
+
     composite_data = pd.concat(all_datasets, ignore_index=True)
     del all_datasets
 
