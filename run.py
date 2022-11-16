@@ -120,13 +120,13 @@ train_parser.add_argument(
     help="Toggle validation, where the model is evaluated every 5000 steps during training - default is off."
 )
 
-train_parser.add_argument(
-    '-ft',
-    '--finetune',
-    action='store_true',
-    default=False,
-    help="Toggle on fine-tuning training round after initial pre-training stage - default is off."
-)
+# train_parser.add_argument(
+#     '-ft',
+#     '--finetune',
+#     action='store_true',
+#     default=False,
+#     help="Toggle on fine-tuning training round after initial pre-training stage - default is off."
+# )
 
 train_parser.add_argument(
     '-c',
@@ -303,7 +303,9 @@ if __name__ == "__main__":
             else:  # transcripts, composite, etc.
                 data_type, summaries, data_start, data_end = args.data, False, '', ''
 
-            if args.stage == 'test':
+            if args.stage == 'train' and args.data == 'news-composite-dist':
+                args.finetune = True
+            else:
                 args.finetune = False
 
             dataset_exists = check_data_exists(
