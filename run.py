@@ -303,7 +303,7 @@ if __name__ == "__main__":
             else:  # transcripts, composite, etc.
                 data_type, summaries, data_start, data_end = args.data, False, '', ''
 
-            if args.stage == 'train' and args.data == 'news-composite-dist':
+            if args.stage == 'train' and args.data == 'composite-news-dist':
                 args.finetune = True
             else:
                 args.finetune = False

@@ -242,12 +242,15 @@ def train_model(model=None, data_dir='reviews', train_data_txt='rpunct_train_set
             args={
                 "evaluate_during_training": validation,
                 "evaluate_during_training_steps": 5000,
+                "evaluate_during_training_verbose": True,
+                "save_eval_checkpoints": False,
                 "overwrite_output_dir": True,
                 "num_train_epochs": epochs,
                 "max_seq_length": 512,
                 "lazy_loading": True,
                 "save_steps": -1,
-                "save_model_every_epoch": True
+                "save_model_every_epoch": True,
+                "scheduler": 'polynomial_decay_schedule_with_warmup'
             }
         )
     else:
