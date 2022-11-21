@@ -289,12 +289,6 @@ def plot_training(training, out_path='training/training_loss.png'):
     fig.savefig(out_path)
 
 
-def fine_tuning(model, source='composite-news', use_cuda=True, epochs=3):
-
-
-    return model
-
-
 if __name__ == "__main__":
     # specify which training data to use and whether to use a GPU
     data = 'news'

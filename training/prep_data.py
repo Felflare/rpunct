@@ -120,7 +120,7 @@ def create_composite_dataset(distinct, train_split, dataset_names, balance):
         # collect dataset from file
         if name == 'news-articles':
             # collect articles part of composite dataset (from JSONL files)
-            dataset_dir = collate_news_articles(2022, 2022, summaries=False, train_split=1.0, composite=True, distinct_composite=distinct)
+            dataset_dir = collate_news_articles(2020, 2022, summaries=False, train_split=1.0, composite=True, distinct_composite=distinct)
             dataset_path = os.path.join(dataset_dir, 'train_news.csv')
         elif name == 'news-transcripts':
             # collect transcripts part of dataset
@@ -158,25 +158,31 @@ def create_composite_dataset(distinct, train_split, dataset_names, balance):
         all_datasets = [d[:min_length] for d in all_datasets]
         print("\n> Combining datasets in 1:1 proportion")
     elif balance == '2:1' and len(all_datasets) == 2:
-        half_len = len(all_datasets[0]) / 2
+        proportion = int(len(all_datasets[0]) / 2)
 
-        if len(all_datasets[1]) > half_len:
-            all_datasets = [all_datasets[0], all_datasets[1][:half_len]]
+        if len(all_datasets[1]) > proportion and len(all_datasets) == 2:
+            all_datasets = [all_datasets[0], all_datasets[1][:proportion]]
             print("\n> Combining datasets in 2:1 proportion")
         else:
             print("\n> Combining datasets of original length")
     elif balance == '1:2' and len(all_datasets) == 2:
-        half_len = len(all_datasets[1]) / 2
+        proportion = int(len(all_datasets[1]) / 2)
 
-        if len(all_datasets[0]) > half_len:
-            all_datasets = [all_datasets[0][:half_len], all_datasets[1]]
-            print("\n> Combining datasets of in 2:1 proportion")
+        if len(all_datasets[0]) > proportion:
+            all_datasets = [all_datasets[0][:proportion], all_datasets[1]]
+            print("\n> Combining datasets of in 1:2 proportion")
         else:
             print("\n> Combining datasets of original length")
-    elif balance != 'o':  # `balance = 'o'` => original dataset sizes
+    elif balance == '2:3' and len(all_datasets) == 2:
+        proportion = int(len(all_datasets[1]) / 3) * 2
+
+        if len(all_datasets[0]) > proportion:
+            all_datasets = [all_datasets[0][:proportion], all_datasets[1]]
+            print("\n> Combining datasets of in 2:3 proportion")
+        else:
+            print("\n> Combining datasets of original length")
+    else:  # `balance = 'o'` => original dataset sizes
         print("\n> Combining datasets of original length")
-
-
 
     composite_data = pd.concat(all_datasets, ignore_index=True)
     del all_datasets
