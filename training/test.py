@@ -19,7 +19,9 @@ except ModuleNotFoundError:
 sns.set_theme(style="darkgrid")
 sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 
-VALID_LABELS = ['OC', 'OO', '.O', '!O', ',O', '.C', '!C', ',C', ':O', ';O', ':C', "'O", '-O', '?O', '?C']
+PUNCT_LABELS = ['O', '.', ',', ':', ';', "'", '-', '?', '!']
+CAPI_LABELS = ['O', 'C']
+VALID_LABELS = [f"{x}{y}" for y in CAPI_LABELS for x in PUNCT_LABELS]
 
 PATH = './training/datasets/'
 RESULTS_PATH = './tests/'

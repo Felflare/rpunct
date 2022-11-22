@@ -14,7 +14,9 @@ import pandas as pd
 from tqdm import tqdm
 import tensorflow_datasets as tfds
 
-VALID_LABELS = ['OC', 'OO', '.O', '!O', ',O', '.C', '!C', ',C', ':O', ';O', ':C', "'O", '-O', '?O', '?C']
+PUNCT_LABELS = ['O', '.', ',', ':', ';', "'", '-', '?', '!']
+CAPI_LABELS = ['O', 'C']
+VALID_LABELS = [f"{x}{y}" for y in CAPI_LABELS for x in PUNCT_LABELS]
 PATH = './training/datasets/'
 WORDS_PER_FILE = 15000000
 
