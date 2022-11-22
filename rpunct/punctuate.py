@@ -9,13 +9,15 @@ import logging
 from langdetect import detect
 from simpletransformers.ner import NERModel
 
+VALID_LABELS = ['OC', 'OO', '.O', '!O', ',O', '.C', '!C', ',C', ':O', ';O', ':C', "'O", '-O', '?O', '?C']
+
 
 class RestorePuncts:
     def __init__(self, wrds_per_pred=250, use_cuda=True, model_location='felflare/bert-restore-punctuation'):
         self.model_location = model_location
         self.wrds_per_pred = wrds_per_pred
         self.overlap_wrds = 30
-        self.valid_labels = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
+        self.valid_labels = VALID_LABELS
         self.model = NERModel(
             "bert",
             self.model_location,
@@ -163,8 +165,8 @@ class RestorePuncts:
         for i in full_pred:
             word, label = i
 
-            # if the label ends with `U` capitalise the word (don't for `O` ending)
-            if label[-1] == "U":
+            # if the label ends with `C` capitalise the word (don't for `O` ending)
+            if label[-1] == "C":
                 punct_wrd = word.capitalize()
             else:
                 punct_wrd = word

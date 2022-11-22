@@ -14,7 +14,7 @@ import pandas as pd
 from tqdm import tqdm
 import tensorflow_datasets as tfds
 
-VALID_LABELS = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
+VALID_LABELS = ['OC', 'OO', '.O', '!O', ',O', '.C', '!C', ',C', ':O', ';O', ':C', "'O", '-O', '?O', '?C']
 PATH = './training/datasets/'
 WORDS_PER_FILE = 15000000
 
@@ -417,7 +417,7 @@ def create_record(row):
 
         # if the word is capitalised, add it to the label
         if obs[0].isupper():
-            new_lab += "U"  # `xU` => capitalised
+            new_lab += "C"  # `xC` => capitalised
         else:
             new_lab += "O"  # `xO` => lowercase
 
@@ -506,7 +506,7 @@ def create_tokenized_obs(input_list, num_toks=500, offset=250):
             start = -1
 
         # check if the current word is uppercase
-        if i['labels'][-1] == "U" and start == -1:
+        if i['labels'][-1] == "C" and start == -1:
             start = ix  # start chunk from this uppercase word (i.e. start of a sentence)
             end = ix + num_toks  # the end of that chunk is 500 words later
             appends.append((start, end))  # enumerate the start and end of this chunk
