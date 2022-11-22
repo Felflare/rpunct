@@ -15,8 +15,9 @@ from tqdm import tqdm
 import tensorflow_datasets as tfds
 
 PUNCT_LABELS = ['O', '.', ',', ':', ';', "'", '-', '?', '!']
-CAPI_LABELS = ['O', 'C']
+CAPI_LABELS = ['O', 'C', 'U', 'M']
 VALID_LABELS = [f"{x}{y}" for y in CAPI_LABELS for x in PUNCT_LABELS]
+
 PATH = './training/datasets/'
 WORDS_PER_FILE = 15000000
 
@@ -417,9 +418,13 @@ def create_record(row):
         else:
             new_lab = "O"  # `O` => no punctuation
 
-        # if the word is capitalised, add it to the label
-        if obs[0].isupper():
+        # if the word is lowercase/capitalised/uppercase/mixed-case, add a descriptor to the label
+        if obs.isupper():
+            new_lab += "U"  # `xU` => uppercase
+        elif obs[0].isupper() and obs[1:].islower():
             new_lab += "C"  # `xC` => capitalised
+        elif not obs.islower():
+            new_lab += "M"  # `xM` => mixed-case
         else:
             new_lab += "O"  # `xO` => lowercase
 

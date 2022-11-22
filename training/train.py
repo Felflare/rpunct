@@ -19,7 +19,7 @@ sns.set_theme(style="darkgrid")
 sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 
 PUNCT_LABELS = ['O', '.', ',', ':', ';', "'", '-', '?', '!']
-CAPI_LABELS = ['O', 'C']
+CAPI_LABELS = ['O', 'C', 'U', 'M']
 VALID_LABELS = [f"{x}{y}" for y in CAPI_LABELS for x in PUNCT_LABELS]
 
 PATH = './training/datasets/'
@@ -95,7 +95,7 @@ def prepare_data(source='reviews', train_or_test='train', validation=False, prin
     token_data = load_datasets(source, train_or_test)
 
     # remove any invalid labels
-    clean_up_labels(token_data, VALID_LABELS)
+    clean_up_labels(token_data)
 
     # split train/test datasets, convert each to a text file, and print dataset stats if desired
     if validation:
@@ -167,9 +167,9 @@ def load_datasets(data_dir='reviews', train_or_test='train'):
     return token_data
 
 
-def clean_up_labels(dataset, valid_labels):
+def clean_up_labels(dataset, valid_labels=VALID_LABELS):
     """
-    Given a list of Valid labels cleans up the dataset
+    Given a list of valid labels cleans up the dataset
     by limiting to only the labels available.
 
     In addition prepares observations for training.

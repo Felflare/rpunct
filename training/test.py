@@ -20,7 +20,7 @@ sns.set_theme(style="darkgrid")
 sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 
 PUNCT_LABELS = ['O', '.', ',', ':', ';', "'", '-', '?', '!']
-CAPI_LABELS = ['O', 'C']
+CAPI_LABELS = ['O', 'C', 'U', 'M']
 VALID_LABELS = [f"{x}{y}" for y in CAPI_LABELS for x in PUNCT_LABELS]
 
 PATH = './training/datasets/'
