@@ -419,7 +419,9 @@ def create_record(row):
             new_lab = "O"  # `O` => no punctuation
 
         # if the word is lowercase/capitalised/uppercase/mixed-case, add a descriptor to the label
-        if obs.isupper():
+        if obs.isnumeric():
+            new_lab += "O"  # `xO` => lowercase (set numbers as null/lowercase)
+        elif obs.isupper():
             new_lab += "U"  # `xU` => uppercase
         elif obs[0].isupper() and obs[1:].islower():
             new_lab += "C"  # `xC` => capitalised
