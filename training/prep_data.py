@@ -411,11 +411,12 @@ def create_record(row):
         # if there is a punctuation mark after the word, add it to the label
         if not obs[-1].isalnum():
             new_lab = obs[-1]
+            obs = obs[:-1]
         else:
             new_lab = "O"  # `O` => no punctuation
 
         # if the word is lowercase/capitalised/uppercase/mixed-case, add a descriptor to the label
-        if obs.isnumeric():
+        if re.sub(r"[^0-9a-zA-Z]", "", obs).isnumeric():
             new_lab += "O"  # `xO` => lowercase (set numbers as null/lowercase)
         elif obs.isupper():
             new_lab += "U"  # `xU` => uppercase
