@@ -8,6 +8,7 @@ import pandas as pd
 import tensorflow_datasets as tfds
 
 PATH = './training/datasets/'
+INTERVIEW_PATH = '/Users/tompo/.bbc-data/bbc/speech/transcription/evaluation/bbc-oral-history-project/0.0.1/data/original-metadata/GoldStandardNC'
 
 
 def create_composite_dataset(distinct, train_split, dataset_names, balance):
@@ -246,3 +247,56 @@ def download_reviews():
     test.to_csv(csv_path_test, index=False)
 
     return dataset_path
+
+
+def collate_historical_interviews(train_split=1.0):
+    print(f"\n> Assembling interview transcripts:")
+    invalid_chars = ['=', '_', '\cf0']
+    dataset_path = os.path.join(PATH, f'historical-interview-transcripts')
+    dataset_files = [f'{dir}/{dir}.txt' for dir in os.listdir(INTERVIEW_PATH)]
+    interviews = []
+
+    for dataset_txt in dataset_files:
+        file_path = os.path.join(INTERVIEW_PATH, dataset_txt)
+
+        with open(file_path, 'r') as fp:
+            data = np.array(fp.readlines())
+
+            mapping =  dict.fromkeys(range(32))
+            data = [d.translate(mapping) for d in data if d not in ['\t', '\n']]
+
+        interviews.extend([d.strip() for d in data if "{" not in d and "\\" not in d])
+        del data
+
+    # train-test split
+    random.seed(42)
+    random.shuffle(interviews)
+    split = math.ceil(train_split * len(interviews))
+    train = interviews[:split]
+    test = interviews[split:]
+
+    print(f"\t* Interview transcripts in total    : {len(interviews)}")
+    print(f"\t* Interview transcripts in train set: {len(train)}")
+    print(f"\t* Interview transcripts in test set : {len(test)}")
+    del interviews
+
+    # save train/test data to csv
+    pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
+
+    train = pd.DataFrame(train, columns=['text'])
+    train['text'] = train['text'].str.replace("_", '')
+    train['text'] = train['text'].replace('', np.nan)
+    train['text'] = train['text'].dropna()
+
+    csv_path_train = os.path.join(dataset_path, 'train_interviews.csv')
+    train.to_csv(csv_path_train, index=False)
+    del train
+
+    test = pd.DataFrame(test, columns=['text'])
+    test['text'] = test['text'].str.replace("_", '')
+    test['text'] = test['text'].replace('', np.nan)
+    test['text'] = test['text'].dropna()
+
+    csv_path_test = os.path.join(dataset_path, 'test_interviews.csv')
+    test.to_csv(csv_path_test, index=False)
+    del test
