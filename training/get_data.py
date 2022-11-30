@@ -21,6 +21,7 @@ def create_composite_dataset(distinct, train_split, dataset_names, balance):
             # collect articles part of composite dataset (from JSONL files)
             dataset_dir = collate_news_articles(2022, 2022, summaries=False, train_split=1.0, composite=True, distinct_composite=distinct)
             dataset_path = os.path.join(dataset_dir, 'train_news.csv')
+
         elif name == 'news-transcripts':
             # collect transcripts part of dataset
             dataset_dir = collate_news_transcripts(train_split=0.9998, composite=True, distinct_composite=distinct)
@@ -35,6 +36,12 @@ def create_composite_dataset(distinct, train_split, dataset_names, balance):
             test_dataset_path_output = os.path.join(dataset_dir, 'test_composite.csv')
             transcripts_test.to_csv(test_dataset_path_output, index=False)
             del transcripts_test
+
+        elif name == 'historical-interviews':
+            # collect historical interviews part of dataset
+            dataset_dir = collate_historical_interviews(composite=True)
+            dataset_path = os.path.join(dataset_dir, 'train_interviews.csv')
+
         else:
             raise ValueError("Composite dataset cannot be built with unknown source datasets.")
 
@@ -52,43 +59,43 @@ def create_composite_dataset(distinct, train_split, dataset_names, balance):
         del dataset
 
     # combine two news datasets together in proportion denoted by `balance`
-    if balance == '1:1':  # even balance
-        min_length = min(map(len, all_datasets))
-        all_datasets = [d[:min_length] for d in all_datasets]
-        print("\n> Combining datasets in 1:1 proportion")
-    elif balance == '2:1' and len(all_datasets) == 2:
-        proportion = int(len(all_datasets[0]) / 2)
+    # if balance == '1:1':  # even balance
+    #     min_length = min(map(len, all_datasets))
+    #     all_datasets = [d[:min_length] for d in all_datasets]
+    #     print("\n> Combining datasets in 1:1 proportion")
+    # elif balance == '2:1' and len(all_datasets) == 2:
+    #     proportion = int(len(all_datasets[0]) / 2)
 
-        if len(all_datasets[1]) > proportion and len(all_datasets) == 2:
-            all_datasets = [all_datasets[0], all_datasets[1][:proportion]]
-            print("\n> Combining datasets in 2:1 proportion")
-        else:
-            print("\n> Combining datasets of original length")
-    elif balance == '1:2' and len(all_datasets) == 2:
-        proportion = int(len(all_datasets[1]) / 2)
+    #     if len(all_datasets[1]) > proportion and len(all_datasets) == 2:
+    #         all_datasets = [all_datasets[0], all_datasets[1][:proportion]]
+    #         print("\n> Combining datasets in 2:1 proportion")
+    #     else:
+    #         print("\n> Combining datasets of original length")
+    # elif balance == '1:2' and len(all_datasets) == 2:
+    #     proportion = int(len(all_datasets[1]) / 2)
 
-        if len(all_datasets[0]) > proportion:
-            all_datasets = [all_datasets[0][:proportion], all_datasets[1]]
-            print("\n> Combining datasets of in 1:2 proportion")
-        else:
-            print("\n> Combining datasets of original length")
-    elif balance == '2:3' and len(all_datasets) == 2:
-        proportion = int(len(all_datasets[1]) / 3) * 2
+    #     if len(all_datasets[0]) > proportion:
+    #         all_datasets = [all_datasets[0][:proportion], all_datasets[1]]
+    #         print("\n> Combining datasets of in 1:2 proportion")
+    #     else:
+    #         print("\n> Combining datasets of original length")
+    # elif balance == '2:3' and len(all_datasets) == 2:
+    #     proportion = int(len(all_datasets[1]) / 3) * 2
 
-        if len(all_datasets[0]) > proportion:
-            all_datasets = [all_datasets[0][:proportion], all_datasets[1]]
-            print("\n> Combining datasets of in 2:3 proportion")
-        else:
-            print("\n> Combining datasets of original length")
-    else:  # `balance = 'o'` => original dataset sizes
-        print("\n> Combining datasets of original length")
+    #     if len(all_datasets[0]) > proportion:
+    #         all_datasets = [all_datasets[0][:proportion], all_datasets[1]]
+    #         print("\n> Combining datasets of in 2:3 proportion")
+    #     else:
+    #         print("\n> Combining datasets of original length")
+    # else:  # `balance = 'o'` => original dataset sizes
+    #     print("\n> Combining datasets of original length")
 
     composite_data = pd.concat(all_datasets, ignore_index=True)
     del all_datasets
 
     # shuffle samples (not necessary if splitting into distinct composite datasets)
     if not distinct:
-        composite_data = composite_data.sample(frac=1).reset_index(drop=True)
+        composite_data = composite_data.sample(frac=1, random_state=42).reset_index(drop=True)
 
     # save composite dataset to csv file
     csv_path_train = os.path.join(dataset_dir, 'train_composite.csv')
@@ -100,14 +107,8 @@ def create_composite_dataset(distinct, train_split, dataset_names, balance):
 
 def collate_news_articles(start_date, end_date, summaries, train_split=0.9, composite=False, distinct_composite=False):
     if composite:
-        if distinct_composite:
-            distinctness_tag = 'dist'
-        else:
-            distinctness_tag = 'int'
-
         summary_or_body = 'body'
-        dataset_path = os.path.join(PATH, f'composite-news-{distinctness_tag}')
-
+        dataset_path = os.path.join(PATH, 'composite')
     elif summaries:
         summary_or_body = 'summary'
         dataset_path = os.path.join(PATH, f'news-summaries')
@@ -193,12 +194,7 @@ def collate_news_transcripts(train_split=0.9, composite=False, distinct_composit
 
     # save train/test data to csv
     if composite:
-        if distinct_composite:
-            distinctness_tag = 'dist'
-        else:
-            distinctness_tag = 'int'
-
-        dataset_path = os.path.join(PATH, f'composite-news-{distinctness_tag}')
+        dataset_path = os.path.join(PATH, 'composite')
     else:
         dataset_path = os.path.join(PATH, f'news-transcripts')
 
@@ -249,10 +245,14 @@ def download_reviews():
     return dataset_path
 
 
-def collate_historical_interviews(train_split=1.0):
+def collate_historical_interviews(train_split=1.0, composite=False):
     print(f"\n> Assembling interview transcripts:")
-    invalid_chars = ['=', '_', '\cf0']
-    dataset_path = os.path.join(PATH, f'historical-interview-transcripts')
+
+    if composite:
+        dataset_path = os.path.join(PATH, 'composite')
+    else:
+        dataset_path = os.path.join(PATH, 'historical-interview-transcripts')
+
     dataset_files = [f'{dir}/{dir}.txt' for dir in os.listdir(INTERVIEW_PATH)]
     interviews = []
 
@@ -300,3 +300,5 @@ def collate_historical_interviews(train_split=1.0):
     csv_path_test = os.path.join(dataset_path, 'test_interviews.csv')
     test.to_csv(csv_path_test, index=False)
     del test
+
+    return dataset_path

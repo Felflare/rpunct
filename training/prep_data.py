@@ -43,9 +43,9 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
         data_type = 'transcripts'
         dataset_path = collate_news_transcripts(train_split=split)
 
-    elif data_type == 'composite-news':
+    elif data_type == 'composite':
         # error checking
-        if composite_data_distinctness and (composite_datasets_list is  None or len(composite_datasets_list) != 2):
+        if composite_data_distinctness and composite_datasets_list is  None:
             raise ValueError("If building distinct composite datasets, you must specify exactly TWO included datasets (one for pre-training, one for fine-tuning).")
 
         # create composte dataset of BBC News articles and transcripts
@@ -53,7 +53,6 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
 
-        data_type = 'composite'
         dataset_path = create_composite_dataset(distinct=composite_data_distinctness, train_split=split, dataset_names=composite_datasets_list, balance=dataset_balance)
 
     else:
