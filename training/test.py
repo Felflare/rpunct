@@ -10,16 +10,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from simpletransformers.ner import NERModel
-
-try:
-    from training.train import prepare_data
-except ModuleNotFoundError:
-    from train import prepare_data
+from training.train import prepare_data, VALID_LABELS
 
 sns.set_theme(style="darkgrid")
 sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
-
-VALID_LABELS = ['OC', 'OO', '.O', '!O', ',O', '.C', '!C', ',C', ':O', ';O', ':C', "'O", '-O', '?O', '?C']
 
 PATH = './training/datasets/'
 RESULTS_PATH = './tests/'

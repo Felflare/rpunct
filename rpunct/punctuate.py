@@ -9,7 +9,9 @@ import logging
 from langdetect import detect
 from simpletransformers.ner import NERModel
 
-VALID_LABELS = ['OC', 'OO', '.O', '!O', ',O', '.C', '!C', ',C', ':O', ';O', ':C', "'O", '-O', '?O', '?C']
+PUNCT_LABELS = ['O', '.', ',', ':', ';', "'", '-', '?', '!', '%']
+CAPI_LABELS = ['O', 'C', 'U', 'M']
+VALID_LABELS = [f"{x}{y}" for y in CAPI_LABELS for x in PUNCT_LABELS]
 
 
 class RestorePuncts:
@@ -165,10 +167,18 @@ class RestorePuncts:
         for i in full_pred:
             word, label = i
 
-            # if the label ends with `C` capitalise the word (don't for `O` ending)
-            if label[-1] == "C":
+            # implement capitalisation (lowercase/capitalised/uppercase/mixed-case)
+            if label[-1] == "U":
+                # `xU` => uppercase
+                punct_wrd = word.upper()
+            elif label[-1] == "C":
+                # `xC` => capitalised
                 punct_wrd = word.capitalize()
+            elif label[-1] == "M":
+                # `xM` => mixed-case --- atm just put into uppercase but needs adapting later
+                punct_wrd = word.upper()
             else:
+                # `xO` => lowercase
                 punct_wrd = word
 
             # if the label indicates punctuation comes after this word, add it

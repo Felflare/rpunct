@@ -14,7 +14,6 @@ import pandas as pd
 from tqdm import tqdm
 import tensorflow_datasets as tfds
 
-VALID_LABELS = ['OC', 'OO', '.O', '!O', ',O', '.C', '!C', ',C', ':O', ';O', ':C', "'O", '-O', '?O', '?C']
 PATH = './training/datasets/'
 WORDS_PER_FILE = 15000000
 
@@ -120,7 +119,7 @@ def create_composite_dataset(distinct, train_split, dataset_names, balance):
         # collect dataset from file
         if name == 'news-articles':
             # collect articles part of composite dataset (from JSONL files)
-            dataset_dir = collate_news_articles(2020, 2022, summaries=False, train_split=1.0, composite=True, distinct_composite=distinct)
+            dataset_dir = collate_news_articles(2022, 2022, summaries=False, train_split=1.0, composite=True, distinct_composite=distinct)
             dataset_path = os.path.join(dataset_dir, 'train_news.csv')
         elif name == 'news-transcripts':
             # collect transcripts part of dataset
@@ -412,12 +411,19 @@ def create_record(row):
         # if there is a punctuation mark after the word, add it to the label
         if not obs[-1].isalnum():
             new_lab = obs[-1]
+            obs = obs[:-1]
         else:
             new_lab = "O"  # `O` => no punctuation
 
-        # if the word is capitalised, add it to the label
-        if obs[0].isupper():
+        # if the word is lowercase/capitalised/uppercase/mixed-case, add a descriptor to the label
+        if re.sub(r"[^0-9a-zA-Z]", "", obs).isnumeric():
+            new_lab += "O"  # `xO` => lowercase (set numbers as null/lowercase)
+        elif obs.isupper():
+            new_lab += "U"  # `xU` => uppercase
+        elif obs[0].isupper() and obs[1:].islower():
             new_lab += "C"  # `xC` => capitalised
+        elif not obs.islower():
+            new_lab += "M"  # `xM` => mixed-case
         else:
             new_lab += "O"  # `xO` => lowercase
 

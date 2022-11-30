@@ -11,6 +11,8 @@ training/prep_interviews.py
 tests/
 !tests/sample_text.txt
 rpunct/__pycache__
+rpunct/punctuate_old.py
 provision.sh
+provision_linguine.sh
 .DS_Store
 label-distributions/
