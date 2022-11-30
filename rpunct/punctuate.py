@@ -8,7 +8,10 @@ import os
 import logging
 from langdetect import detect
 from simpletransformers.ner import NERModel
-from training.train import VALID_LABELS
+
+PUNCT_LABELS = ['O', '.', ',', ':', ';', "'", '-', '?', '!', '%']
+CAPI_LABELS = ['O', 'C', 'U', 'M']
+VALID_LABELS = [f"{x}{y}" for y in CAPI_LABELS for x in PUNCT_LABELS]
 
 
 class RestorePuncts:
