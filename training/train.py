@@ -14,6 +14,7 @@ from tqdm import tqdm
 from simpletransformers.ner import NERModel
 import matplotlib.pyplot as plt
 import seaborn as sns
+from training.get_data import remove_temp_files
 
 sns.set_theme(style="darkgrid")
 sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
@@ -114,6 +115,10 @@ def prepare_data(source='reviews', train_or_test='train', validation=False, prin
 
     # format training set as Connl NER txt file
     create_text_file(train_set, dataset_path)
+
+    # remove temporary dataset files
+    dataset_path = os.path.join(PATH, source)
+    remove_temp_files(dataset_path)
 
     # dataset statistics
     if print_stats:

@@ -11,6 +11,13 @@ PATH = './training/datasets/'
 INTERVIEW_PATH = '/Users/tompo/.bbc-data/bbc/speech/transcription/evaluation/bbc-oral-history-project/0.0.1/data/original-metadata/GoldStandardNC'
 
 
+def remove_temp_files(dataset_path, extensions=['npy', 'csv']):
+    # find directory and remove all temporary .npy and .csv files
+    for extension in extensions:
+        for p in pathlib.Path(dataset_path).glob("*." + extension):
+            p.unlink()
+
+
 def create_composite_dataset(distinct, train_split, dataset_names, balance):
     # create a collection of all individual datasets needed to construct composite datasets
     all_datasets = []

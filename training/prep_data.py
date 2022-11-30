@@ -78,6 +78,9 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
             output_file = f"{data_type}_{key}_finetuning"
             total_words += create_training_samples(secondary_rpunct_dataset, output_file, file_out_path=dataset_path, train_or_test=key)
 
+    # remove temporary dataset files
+    remove_temp_files(dataset_path, extensions=['csv'])
+
     print("\n> Data generation complete")
     print(f"\t* Total no. words in both datasets: {total_words}", end='\n\n')
 
@@ -104,9 +107,11 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
     data_file_pattern = f'{data_type}_{train_or_test}_*.npy'
     dataset_paths = list(pathlib.Path(data_dir).glob(data_file_pattern))
     data_files_exist = len(dataset_paths) > 0
-    print(f"\n> Required data files found at '{data_dir}/{data_file_pattern}'? : {data_files_exist}")
+    training_txt_exists = os.path.isfile(data_dir + "/rpunct_train_set.txt")
+    check = data_files_exist or training_txt_exists
+    print(f"\n> Required data files found in directory '{data_dir}'? : {check}")
 
-    return data_files_exist
+    return check
 
 
 def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, dataset_names=None):
