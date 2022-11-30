@@ -193,6 +193,8 @@ class RestorePuncts:
         # Append trailing period if doesn't exist.
         if punct_resp[-1].isalnum():
             punct_resp += "."
+        elif punct_resp[-1] not in ['.', '?', '!']:
+            punct_resp = punct_resp[:-1] + "."
 
         return punct_resp
 
