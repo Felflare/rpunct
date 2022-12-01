@@ -182,7 +182,9 @@ class RestorePuncts:
                 punct_wrd = word
 
             # if the label indicates punctuation comes after this word, add it
-            if label[0] != "O":
+            if label[0] == '-':
+                punct_wrd += ' -'
+            elif label[0] != "O":
                 punct_wrd += label[0]
 
             punct_resp += punct_wrd + " "
