@@ -121,8 +121,11 @@ def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, 
     data_split.dropna(inplace=True)
     data_split.reset_index(drop=True, inplace=True)
 
-    # change inter-word hyphens to hypends appended onto the previous word
-    data_split['text'] = data_split['text'].str.replace(" -", "-")
+    # change inter-word dashes to commas
+    data_split['text'] = data_split['text'].str.replace(" -", ",")
+
+    # insert a space after intra-word hyphens
+    data_split['text'] = data_split['text'].str.replace("-", "- ")
 
     # if we are dealing with a composite dataset of distinct parts, split the prep of each to be processed separately
     if composite_and_distinct and split == 'train':
