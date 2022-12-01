@@ -121,6 +121,9 @@ def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, 
     data_split.dropna(inplace=True)
     data_split.reset_index(drop=True, inplace=True)
 
+    # change inter-word hyphens to hypends appended onto the previous word
+    data_split['text'] = data_split['text'].str.replace(" -", "-")
+
     # if we are dealing with a composite dataset of distinct parts, split the prep of each to be processed separately
     if composite_and_distinct and split == 'train':
         # segment distinct articles and transcripts datasets (from composite dataset)
@@ -129,7 +132,6 @@ def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, 
             datasets.append(
                 data_split[data_split['source'] == name]['text']
             )
-
     else:
         datasets = [
             data_split['text']
@@ -176,7 +178,6 @@ def create_record(row):
         # if there is a punctuation mark after the word, add it to the label
         if not obs[-1].isalnum():
             new_lab = obs[-1]
-            obs = obs[:-1]
         else:
             new_lab = "O"  # `O` => no punctuation
 

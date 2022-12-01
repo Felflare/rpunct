@@ -163,6 +163,9 @@ def collate_news_articles(start_date, end_date, summaries, train_split=0.9, comp
     test.to_csv(csv_path_test, index=False)
     del test
 
+    # remove pre-existing data files from previous iterations
+    remove_temp_files(dataset_path, extensions=['npy', 'txt'])
+
     return dataset_path
 
 
@@ -219,6 +222,9 @@ def collate_news_transcripts(train_split=0.9, composite=False, distinct_composit
     test.to_csv(csv_path_test, index=False)
     del test
 
+    # remove pre-existing data files from previous iterations
+    remove_temp_files(dataset_path, extensions=['npy', 'txt'])
+
     return dataset_path
 
 
@@ -248,6 +254,9 @@ def download_reviews():
 
     csv_path_test = os.path.join(dataset_path, 'test_reviews.csv')
     test.to_csv(csv_path_test, index=False)
+
+    # remove pre-existing data files from previous iterations
+    remove_temp_files(dataset_path, extensions=['npy', 'txt'])
 
     return dataset_path
 
@@ -307,5 +316,8 @@ def collate_historical_interviews(train_split=1.0, composite=False):
     csv_path_test = os.path.join(dataset_path, 'test_interviews.csv')
     test.to_csv(csv_path_test, index=False)
     del test
+
+    # remove pre-existing data files from previous iterations
+    remove_temp_files(dataset_path, extensions=['npy', 'txt'])
 
     return dataset_path
