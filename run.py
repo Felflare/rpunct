@@ -68,7 +68,7 @@ composite_data_subparser.add_argument(
     action='store',
     nargs='+',
     type=str,
-    default=['news-articles', 'news-transcripts', 'historical-interviews'],
+    default=['news-articles', 'news-transcripts'],
     help="Specify the 2+ data sources to include in the composite dataset - default is news articles and transcripts."
 )
 
@@ -314,7 +314,7 @@ if __name__ == "__main__":
             )
 
             if not dataset_exists:
-                composite_datasets = ['news-articles', 'news-transcripts', 'historical-interviews']
+                composite_datasets = ['news-articles', 'news-transcripts']
                 e2e_data(
                     data_type=data_type,
                     start_year=data_start,

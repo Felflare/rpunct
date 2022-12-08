@@ -44,6 +44,7 @@ class RestorePuncts:
         # throw error if text isn't written in english
         if not lang and len(text) > 10:
             lang = detect(text)
+
         if lang != 'en':
             raise Exception(F"""Non English text detected. Restore Punctuation works only for English.
             If you are certain the input is English, pass argument lang='en' to this function.

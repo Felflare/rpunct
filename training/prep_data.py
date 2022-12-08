@@ -15,6 +15,7 @@ from training.get_data import *
 
 PATH = './training/datasets/'
 WORDS_PER_FILE = 15000000
+SPOKEN_ABBREVIATIONS = {"Aids", "Apec", "Eta", "Farc", "Nafta", "Nasa", "Opec", "Unite"}
 
 
 def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10', composite_datasets_list=None, composite_data_distinctness=False, dataset_balance='o'):
@@ -79,7 +80,7 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
             total_words += create_training_samples(secondary_rpunct_dataset, output_file, file_out_path=dataset_path, train_or_test=key)
 
     # remove temporary dataset files
-    remove_temp_files(dataset_path, extensions=['csv'])
+    remove_temp_files(dataset_path, extensions=['csv'], traintest='train')
 
     print("\n> Data generation complete")
     print(f"\t* Total no. words in both datasets: {total_words}", end='\n\n')
@@ -127,6 +128,10 @@ def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, 
     # insert a space after intra-word hyphens
     data_split['text'] = data_split['text'].str.replace("-", "- ")
 
+    # replace spoken acronyms with their correct capitalisation:
+    for word in SPOKEN_ABBREVIATIONS:
+        data_split['text'] = data_split['text'].str.replace(word.upper(), word)
+
     # if we are dealing with a composite dataset of distinct parts, split the prep of each to be processed separately
     if composite_and_distinct and split == 'train':
         # segment distinct articles and transcripts datasets (from composite dataset)
@@ -146,23 +151,30 @@ def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, 
         'B': []
     }
 
+    mixed_case = pd.DataFrame(columns=['Label', 'Original', 'Plaintext'])
+
     # constuct df of text and labels (punctuation tag per word) for primary (and possibly secondary) dataset
     for d in range(len(datasets)):
         with tqdm(datasets[d]) as T:
-            for article in T:
+            for segment in T:
                 T.set_description(f"        * Labelling {split}ing instances ({d})")
-                record = create_record(article)  # create a list enumerating each word in a single article and its label: [...{id, word, label}...]
+                record, mixed_case = create_record(segment, mixed_case)  # create a list enumerating each word in a single segment/article and its label: [...{id, word, label}...]
                 record_index = list(all_records.keys())[d]
                 all_records[record_index].extend(record)
                 del record
 
+
+    mixed_case = mixed_case.groupby(mixed_case.columns.tolist(), as_index=False).size()
+    mixed_case = mixed_case.sort_values(by=['size'], ignore_index=True)
+    mixed_case.to_csv("mixed_case.csv")
+
     return all_records
 
-def create_record(row):
+def create_record(row, mixed_case):
     """
     Create labels for Punctuation Restoration task for each token.
     """
-    pattern = re.compile("[\W_]+")
+    pattern = re.compile(r"[^0-9a-zA-Z']")
     new_obs = []
 
     # convert string of text (from row) into a list of words
@@ -177,6 +189,8 @@ def create_record(row):
         # if word is the empty string, skip over this one
         if not text_obs:
             continue
+        elif text_obs[-1] == "'":  # remove trailing punctuation (only leave mid-word apostrophes)
+            text_obs = text_obs[:-1]
 
         # if there is a punctuation mark after the word, add it to the label
         if not obs[-1].isalnum():
@@ -184,17 +198,27 @@ def create_record(row):
         else:
             new_lab = "O"  # `O` => no punctuation
 
+        stripped_obs = re.sub(r"[^0-9a-zA-Z]", "", obs)
+        if stripped_obs is '':
+            continue
+
         # if the word is lowercase/capitalised/uppercase/mixed-case, add a descriptor to the label
-        if re.sub(r"[^0-9a-zA-Z]", "", obs).isnumeric():
-            new_lab += "O"  # `xO` => lowercase (set numbers as null/lowercase)
-        elif obs.isupper():
+        if stripped_obs.islower() or stripped_obs.isnumeric():
+            new_lab += "O"  # `xO` => lowercase (incl. numbers)
+        elif stripped_obs.isupper():
             new_lab += "U"  # `xU` => uppercase
-        elif obs[0].isupper() and obs[1:].islower():
+        elif stripped_obs[0].isupper() and (len(stripped_obs) == 1 or stripped_obs[1:].islower()):
             new_lab += "C"  # `xC` => capitalised
-        elif not obs.islower():
-            new_lab += "M"  # `xM` => mixed-case
         else:
-            new_lab += "O"  # `xO` => lowercase
+            new_lab += "M"  # `xM` => mixed-case
+
+            new_mc_input = pd.DataFrame.from_dict({
+                'Label': new_lab,
+                'Original': stripped_obs,
+                'Plain': text_obs
+            }, orient='index')
+
+            mixed_case = pd.concat([mixed_case, new_mc_input])
 
         # add the word and its label to the dataset
         new_obs.append({'sentence_id': 0, 'words': text_obs, 'labels': new_lab})
@@ -202,7 +226,7 @@ def create_record(row):
         del text_obs
         del new_lab
 
-    return new_obs
+    return new_obs, mixed_case
 
 
 def create_training_samples(words_and_labels, file_out_nm, file_out_path=PATH, train_or_test='train', size=WORDS_PER_FILE):

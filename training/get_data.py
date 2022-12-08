@@ -11,10 +11,13 @@ PATH = './training/datasets/'
 INTERVIEW_PATH = '/Users/tompo/.bbc-data/bbc/speech/transcription/evaluation/bbc-oral-history-project/0.0.1/data/original-metadata/GoldStandardNC'
 
 
-def remove_temp_files(dataset_path, extensions=['npy', 'csv']):
+def remove_temp_files(dataset_path, extensions=['npy', 'csv'], traintest=''):
+    if traintest != '':
+        traintest = '*' + traintest
+
     # find directory and remove all temporary .npy and .csv files
     for extension in extensions:
-        for p in pathlib.Path(dataset_path).glob("*." + extension):
+        for p in pathlib.Path(dataset_path).glob(f"{traintest}*." + extension):
             p.unlink()
 
 
