@@ -151,26 +151,26 @@ def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, 
         'B': []
     }
 
-    mixed_case = pd.DataFrame(columns=['Label', 'Original', 'Plaintext'])
+    # mixed_case = pd.DataFrame(columns=['Label', 'Original', 'Plaintext'])
 
     # constuct df of text and labels (punctuation tag per word) for primary (and possibly secondary) dataset
     for d in range(len(datasets)):
         with tqdm(datasets[d]) as T:
             for segment in T:
                 T.set_description(f"        * Labelling {split}ing instances ({d})")
-                record, mixed_case = create_record(segment, mixed_case)  # create a list enumerating each word in a single segment/article and its label: [...{id, word, label}...]
+                record = create_record(segment)  # create a list enumerating each word in a single segment/article and its label: [...{id, word, label}...]
                 record_index = list(all_records.keys())[d]
                 all_records[record_index].extend(record)
                 del record
 
 
-    mixed_case = mixed_case.groupby(mixed_case.columns.tolist(), as_index=False).size()
-    mixed_case = mixed_case.sort_values(by=['size'], ignore_index=True)
-    mixed_case.to_csv("mixed_case.csv")
+    # mixed_case = mixed_case.groupby(mixed_case.columns.tolist(), as_index=False).size()
+    # mixed_case = mixed_case.sort_values(by=['size'], ignore_index=True)
+    # mixed_case.to_csv("mixed_case.csv")
 
     return all_records
 
-def create_record(row, mixed_case):
+def create_record(row):
     """
     Create labels for Punctuation Restoration task for each token.
     """
@@ -212,13 +212,13 @@ def create_record(row, mixed_case):
         else:
             new_lab += "M"  # `xM` => mixed-case
 
-            new_mc_input = pd.DataFrame.from_dict({
-                'Label': new_lab,
-                'Original': stripped_obs,
-                'Plain': text_obs
-            }, orient='index')
+            # new_mc_input = pd.DataFrame.from_dict({
+            #     'Label': new_lab,
+            #     'Original': stripped_obs,
+            #     'Plain': text_obs
+            # }, orient='index')
 
-            mixed_case = pd.concat([mixed_case, new_mc_input])
+            # mixed_case = pd.concat([mixed_case, new_mc_input])
 
         # add the word and its label to the dataset
         new_obs.append({'sentence_id': 0, 'words': text_obs, 'labels': new_lab})
@@ -226,7 +226,7 @@ def create_record(row, mixed_case):
         del text_obs
         del new_lab
 
-    return new_obs, mixed_case
+    return new_obs
 
 
 def create_training_samples(words_and_labels, file_out_nm, file_out_path=PATH, train_or_test='train', size=WORDS_PER_FILE):

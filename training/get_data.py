@@ -29,7 +29,7 @@ def create_composite_dataset(distinct, train_split, dataset_names, balance):
         # collect dataset from file
         if name == 'news-articles':
             # collect articles part of composite dataset (from JSONL files)
-            dataset_dir = collate_news_articles(2022, 2022, summaries=False, train_split=1.0, composite=True, distinct_composite=distinct)
+            dataset_dir = collate_news_articles(2020, 2022, summaries=False, train_split=1.0, composite=True, distinct_composite=distinct)
             dataset_path = os.path.join(dataset_dir, 'train_news.csv')
 
         elif name == 'news-transcripts':

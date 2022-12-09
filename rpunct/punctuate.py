@@ -178,6 +178,12 @@ class RestorePuncts:
             elif label[-1] == "M":
                 # `xM` => mixed-case --- atm just put into uppercase but needs adapting later
                 punct_wrd = word.upper()
+
+                if punct_wrd[-2:] == "'S":
+                    punct_wrd = punct_wrd[:-2] + "'s"
+
+                if len(punct_wrd) > 2 and punct_wrd[-1:] == 'S':
+                    punct_wrd = punct_wrd[:-1] + "s"
             else:
                 # `xO` => lowercase
                 punct_wrd = word
