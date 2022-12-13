@@ -15,7 +15,7 @@ from training.get_data import *
 
 PATH = './training/datasets/'
 WORDS_PER_FILE = 15000000
-SPOKEN_ABBREVIATIONS = {"Aids", "Apec", "Eta", "Farc", "Nafta", "Nasa", "Opec", "Unite"}
+SPOKEN_ABBREVIATIONS = ["Aids", "Apec", "Eta", "Farc", "Nafta", "Nasa", "Opec", "Unite"]
 
 
 def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10', composite_datasets_list=None, composite_data_distinctness=False, dataset_balance='o'):
@@ -151,15 +151,28 @@ def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, 
         'B': []
     }
 
+    mixed_case = pd.DataFrame(columns=['Original', 'Plain'])
+
     # constuct df of text and labels (punctuation tag per word) for primary (and possibly secondary) dataset
     for d in range(len(datasets)):
         with tqdm(datasets[d]) as T:
             for segment in T:
                 T.set_description(f"        * Labelling {split}ing instances ({d})")
-                record = create_record(segment)  # create a list enumerating each word in a single segment/article and its label: [...{id, word, label}...]
+
+                record, new_mixed_case_dict = create_record(segment)  # create a list enumerating each word in a single segment/article and its label: [...{id, word, label}...]
+                mixed_case = pd.concat([mixed_case, new_mixed_case_dict], ignore_index=True)
+
                 record_index = list(all_records.keys())[d]
                 all_records[record_index].extend(record)
                 del record
+
+    if split == 'train':
+        mixed_case = mixed_case[mixed_case["Original"].str.contains("'s") == False]
+        mixed_case = mixed_case.groupby(mixed_case.columns.tolist(), as_index=False).size()
+        mixed_case = mixed_case.sort_values('size', ascending=False).drop_duplicates('Plain').sort_index()
+        mixed_case = mixed_case.drop(columns=['size'])
+        mixed_case = mixed_case.reset_index(drop=True)
+        mixed_case.to_csv("rpunct/mixed-casing.csv")
 
     return all_records
 
@@ -173,6 +186,8 @@ def create_record(row):
     # convert string of text (from row) into a list of words
     # row: str -> observation: list[str]
     observation = row.replace('\\n', ' ').split()
+
+    mixed_case = pd.DataFrame(columns=['Original', 'Plain'])
 
     # remove punctuation of each word, and label it with a tag representing what punctuation it did have
     for obs in observation:
@@ -205,13 +220,31 @@ def create_record(row):
         else:
             new_lab += "M"  # `xM` => mixed-case
 
+            # populate database of mixed-case instances
+            less_stripped_obs = re.sub(r"[^0-9a-zA-Z']", "", obs)
+
+            if not less_stripped_obs[0].isalnum():
+                less_stripped_obs = less_stripped_obs[1:]
+
+            if not less_stripped_obs[-1].isalnum():
+                less_stripped_obs = less_stripped_obs[:-1]
+
+            if less_stripped_obs[-2:] != "'s" and less_stripped_obs[-1:] != 's':
+                new_mc_input = pd.DataFrame(
+                    [[less_stripped_obs, text_obs]],
+                    columns=['Original', 'Plain']
+                )
+
+                mixed_case = pd.concat([mixed_case, new_mc_input], ignore_index=True)
+                del new_mc_input
+
         # add the word and its label to the dataset
         new_obs.append({'sentence_id': 0, 'words': text_obs, 'labels': new_lab})
 
         del text_obs
         del new_lab
 
-    return new_obs
+    return new_obs, mixed_case
 
 
 def create_training_samples(words_and_labels, file_out_nm, file_out_path=PATH, train_or_test='train', size=WORDS_PER_FILE):

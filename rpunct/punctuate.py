@@ -158,8 +158,7 @@ class RestorePuncts:
         assert [i[0] for i in output_text] == split_full_text
         return output_text
 
-    @staticmethod
-    def punctuate_texts(full_pred: list):
+    def punctuate_texts(self, full_pred: list):
         """
         Given a list of Predictions from the model, applies the predictions to text,
         thus punctuating it.
@@ -171,35 +170,36 @@ class RestorePuncts:
             word, label = i
 
             # implement capitalisation (lowercase/capitalised/uppercase/mixed-case)
-            if label[-1] == "U":
-                # `xU` => uppercase
-                punct_wrd = word.upper()
-            elif label[-1] == "C":
-                # `xC` => capitalised
-                punct_wrd = word.capitalize()
-            elif label[-1] == "M":
-                # `xM` => mixed-case --- atm just put into uppercase but needs adapting later
+            if label[-1] == "U":  # `xU` => uppercase
                 punct_wrd = word.upper()
 
-                # if acronym is plural/possessive, set the trailing `s` as lowercase
-                if len(punct_wrd) > 2:
-                    if punct_wrd[-2:] == "'S":
-                        # possessive
-                        punct_wrd = punct_wrd[:-2] + "'s"
-                    elif punct_wrd[-1:] == 'S':
-                        # plural
-                        punct_wrd = punct_wrd[:-1] + "s"
+            elif label[-1] == "C":  # `xC` => capitalised
+                punct_wrd = word.capitalize()
+
+            elif label[-1] == "M":  # `xM` => mixed-case
+                # if acronym is plural/possessive, set the trailing `s` as lowercase. Otherwise, search database for correct mixed-casing
+                if len(word) > 2 and word[-2:] == "'s":
+                    # punct_wrd = word[:-2].upper() + "'s"  # possessive
+                    punct_wrd = self.fetch_mixed_casing(word[:-2]) + "'s"  # possessive
+                elif word[-1:] == 's':
+                    # punct_wrd = word[:-1].upper() + "s"  # plural
+                    punct_wrd = self.fetch_mixed_casing(word[:-1]) + "s"  # plural
+                else:
+                    punct_wrd = self.fetch_mixed_casing(word)  # general mixed-case
+
+                print(f"Mixed-casing: {punct_wrd}; Input: {word}")
+
             else:
                 # `xO` => lowercase
                 punct_wrd = word
 
+                # if previous word ended with a terminal, ensure this word is capitalised
+                if len(punct_resp) > 1 and punct_resp[-2] in TERMINALS:
+                    punct_wrd = punct_wrd.capitalize()
+
             # if the label indicates punctuation comes after this word, add it
             if label[0] != "O":
                 punct_wrd += label[0]
-
-            # if previous word ended with a terminal, ensure this word is capitalised
-            if punct_resp == "" or (len(punct_resp) > 1 and punct_resp[-2] in TERMINALS):
-                punct_wrd = punct_wrd.capitalize()
 
             punct_resp += punct_wrd + " "
 
@@ -217,6 +217,25 @@ class RestorePuncts:
             punct_resp = punct_resp[:-1] + "."
 
         return punct_resp
+
+    def fetch_mixed_casing(self, plaintext):
+        # load database of mixed-case instances
+        try:
+            database = pd.read_csv('rpunct/mixed-casing.csv')
+        except FileNotFoundError:
+            try:
+                database = pd.read_csv('mixed-casing.csv')
+            except FileNotFoundError:
+                return plaintext.upper()
+
+        word_index = database.index[database['Plain'] == plaintext]
+
+        if len(word_index) > 0:
+            correct_capitalisation = database.at[word_index[0], "Original"]
+        else:
+            correct_capitalisation = plaintext.upper()
+
+        return correct_capitalisation
 
 
 def run_rpunct(use_cuda=False, input_txt='tests/sample_text.txt', output_txt=None, model_location='felflare/bert-restore-punctuation'):

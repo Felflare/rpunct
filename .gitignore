@@ -8,8 +8,6 @@ training/__pycache__/
 training/datasets/
 training/training_loss.png
 training/prep_interviews.py
-training/mixed-case-instances.csv
-training/mixed-casing.csv
 training/prep_data_copy.py
 tests/
 !tests/sample_text.txt
