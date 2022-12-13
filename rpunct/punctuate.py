@@ -6,12 +6,14 @@ __email__ = "daulet.nurmanbetov@gmail.com"
 
 import os
 import logging
+import pandas as pd
 from langdetect import detect
 from simpletransformers.ner import NERModel
 
 PUNCT_LABELS = ['O', '.', ',', ':', ';', "'", '-', '?', '!', '%']
 CAPI_LABELS = ['O', 'C', 'U', 'M']
 VALID_LABELS = [f"{x}{y}" for y in CAPI_LABELS for x in PUNCT_LABELS]
+TERMINALS = ['.', '!', '?']
 
 
 class RestorePuncts:
@@ -179,11 +181,14 @@ class RestorePuncts:
                 # `xM` => mixed-case --- atm just put into uppercase but needs adapting later
                 punct_wrd = word.upper()
 
-                if punct_wrd[-2:] == "'S":
-                    punct_wrd = punct_wrd[:-2] + "'s"
-
-                if len(punct_wrd) > 2 and punct_wrd[-1:] == 'S':
-                    punct_wrd = punct_wrd[:-1] + "s"
+                # if acronym is plural/possessive, set the trailing `s` as lowercase
+                if len(punct_wrd) > 2:
+                    if punct_wrd[-2:] == "'S":
+                        # possessive
+                        punct_wrd = punct_wrd[:-2] + "'s"
+                    elif punct_wrd[-1:] == 'S':
+                        # plural
+                        punct_wrd = punct_wrd[:-1] + "s"
             else:
                 # `xO` => lowercase
                 punct_wrd = word
@@ -192,16 +197,23 @@ class RestorePuncts:
             if label[0] != "O":
                 punct_wrd += label[0]
 
+            # if previous word ended with a terminal, ensure this word is capitalised
+            if punct_resp == "" or (len(punct_resp) > 1 and punct_resp[-2] in TERMINALS):
+                punct_wrd = punct_wrd.capitalize()
+
             punct_resp += punct_wrd + " "
 
         # remove unnecessary trailing or leading whitespace
         punct_resp = punct_resp.strip()
         punct_resp = punct_resp.replace("- ", "-")
 
+        # Ensure the first word is capitalised
+        punct_resp = punct_resp[0].capitalize() + punct_resp[1:]
+
         # Append trailing period if doesn't exist.
         if punct_resp[-1].isalnum():
             punct_resp += "."
-        elif punct_resp[-1] not in ['.', '?', '!']:
+        elif punct_resp[-1] not in TERMINALS:
             punct_resp = punct_resp[:-1] + "."
 
         return punct_resp

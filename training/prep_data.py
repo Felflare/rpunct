@@ -151,8 +151,6 @@ def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, 
         'B': []
     }
 
-    # mixed_case = pd.DataFrame(columns=['Label', 'Original', 'Plaintext'])
-
     # constuct df of text and labels (punctuation tag per word) for primary (and possibly secondary) dataset
     for d in range(len(datasets)):
         with tqdm(datasets[d]) as T:
@@ -162,11 +160,6 @@ def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, 
                 record_index = list(all_records.keys())[d]
                 all_records[record_index].extend(record)
                 del record
-
-
-    # mixed_case = mixed_case.groupby(mixed_case.columns.tolist(), as_index=False).size()
-    # mixed_case = mixed_case.sort_values(by=['size'], ignore_index=True)
-    # mixed_case.to_csv("mixed_case.csv")
 
     return all_records
 
@@ -211,14 +204,6 @@ def create_record(row):
             new_lab += "C"  # `xC` => capitalised
         else:
             new_lab += "M"  # `xM` => mixed-case
-
-            # new_mc_input = pd.DataFrame.from_dict({
-            #     'Label': new_lab,
-            #     'Original': stripped_obs,
-            #     'Plain': text_obs
-            # }, orient='index')
-
-            # mixed_case = pd.concat([mixed_case, new_mc_input])
 
         # add the word and its label to the dataset
         new_obs.append({'sentence_id': 0, 'words': text_obs, 'labels': new_lab})
