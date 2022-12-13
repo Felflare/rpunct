@@ -97,7 +97,7 @@ train_parser.add_argument(
     '--data',
     metavar='DATA',
     type=str,
-    choices=['reviews', 'news-summaries', 'composite-news-int', 'composite-news-dist', 'news-transcripts'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
+    choices=['reviews', 'news-summaries', 'composite', 'composite-news-int', 'composite-news-dist', 'news-transcripts'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
     default='news-2014-2022',
     help="Specify the (path to the) dataset to be used to test the model: BBC News (`news-startyr-endyr`) or Yelp reviews (`reviews`) - default is BBC News 2014-2022."
 )
@@ -253,10 +253,6 @@ if __name__ == "__main__":
         )
 
     else:
-        # whilst just dealing with composite news datasets keep this line (delete later)
-        if args.data == 'composite':
-            args.data = 'composite-news'
-
         # Run the pipeline for the ML processing stage selected (data prep, train, test)
         if args.stage == 'data':
             # error checking
@@ -264,7 +260,7 @@ if __name__ == "__main__":
                 if args.end < args.start:
                     raise ValueError("End year of news data range must not be earlier than start year.")
 
-            elif args.data == 'composite-news':
+            elif args.data == 'composite':
                 if len(args.include) < 2:
                     raise ValueError(f"If specifying a composite dataset, at least two data sources must be specified (to merge together). You only specified {len(args.datasets)}.")
 
@@ -278,7 +274,7 @@ if __name__ == "__main__":
                     tt_split=args.split
                 )
 
-            elif args.data == 'composite-news':
+            elif args.data == 'composite':
                 e2e_data(
                     data_type=args.data,
                     tt_split=args.split,

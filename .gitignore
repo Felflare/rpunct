@@ -8,10 +8,14 @@ training/__pycache__/
 training/datasets/
 training/training_loss.png
 training/prep_interviews.py
+training/mixed-case-instances.csv
+training/mixed-casing.csv
+training/prep_data_copy.py
 tests/
 !tests/sample_text.txt
 rpunct/__pycache__
-rpunct/punctuate_old.py
+rpunct/rpunct_recoverer.py
+rpunct/number_recoverer.py
 provision.sh
 provision_linguine.sh
 .DS_Store
