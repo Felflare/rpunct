@@ -32,6 +32,7 @@ class RestorePuncts:
                 "max_seq_length": 512
             }
         )
+        self.mc_database = self.load_mixed_case_database()
 
     def punctuate(self, text: str, lang:str=''):
         """
@@ -179,15 +180,11 @@ class RestorePuncts:
             elif label[-1] == "M":  # `xM` => mixed-case
                 # if acronym is plural/possessive, set the trailing `s` as lowercase. Otherwise, search database for correct mixed-casing
                 if len(word) > 2 and word[-2:] == "'s":
-                    # punct_wrd = word[:-2].upper() + "'s"  # possessive
                     punct_wrd = self.fetch_mixed_casing(word[:-2]) + "'s"  # possessive
                 elif word[-1:] == 's':
-                    # punct_wrd = word[:-1].upper() + "s"  # plural
                     punct_wrd = self.fetch_mixed_casing(word[:-1]) + "s"  # plural
                 else:
                     punct_wrd = self.fetch_mixed_casing(word)  # general mixed-case
-
-                print(f"Mixed-casing: {punct_wrd}; Input: {word}")
 
             else:
                 # `xO` => lowercase
@@ -218,20 +215,29 @@ class RestorePuncts:
 
         return punct_resp
 
-    def fetch_mixed_casing(self, plaintext):
+    def load_mixed_case_database(self, file='mixed-casing.csv'):
         # load database of mixed-case instances
         try:
-            database = pd.read_csv('rpunct/mixed-casing.csv')
+            database = pd.read_csv('rpunct/' + file)
         except FileNotFoundError:
             try:
-                database = pd.read_csv('mixed-casing.csv')
+                database = pd.read_csv(file)
             except FileNotFoundError:
-                return plaintext.upper()
+                database = None
 
-        word_index = database.index[database['Plain'] == plaintext]
+        return database
 
+    def fetch_mixed_casing(self, plaintext):
+        # if database not found, return generic acronym
+        if self.mc_database is None:
+            return plaintext.upper()
+
+        # locate plaintext within mixed-case database
+        word_index = self.mc_database.index[self.mc_database['Plain'] == plaintext]
+
+        # if plaintext found, return the capitalised version
         if len(word_index) > 0:
-            correct_capitalisation = database.at[word_index[0], "Original"]
+            correct_capitalisation = self.mc_database.at[word_index[0], "Original"]
         else:
             correct_capitalisation = plaintext.upper()
 
