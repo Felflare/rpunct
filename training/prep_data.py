@@ -6,6 +6,7 @@ __email__ = "daulet.nurmanbetov@gmail.com"
 import os
 import re
 import math
+import json
 import random
 import pathlib
 import numpy as np
@@ -115,7 +116,7 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
     return check
 
 
-def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, dataset_names=None):
+def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, dataset_names=None, make_mc_database=False):
     # load in train/test data
     data_split_path = os.path.join(path, f'{split}_{data_type}.csv')
     data_split = pd.read_csv(data_split_path)
@@ -151,32 +152,28 @@ def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, 
         'B': []
     }
 
-    mixed_case = pd.DataFrame(columns=['Original', 'Plain'])
+    if make_mc_database:
+        mixed_case = {}
+    else:
+        mixed_case = None
 
     # constuct df of text and labels (punctuation tag per word) for primary (and possibly secondary) dataset
     for d in range(len(datasets)):
         with tqdm(datasets[d]) as T:
             for segment in T:
                 T.set_description(f"        * Labelling {split}ing instances ({d})")
-
-                record, new_mixed_case_dict = create_record(segment)  # create a list enumerating each word in a single segment/article and its label: [...{id, word, label}...]
-                mixed_case = pd.concat([mixed_case, new_mixed_case_dict], ignore_index=True)
-
+                record, mixed_case = create_record(segment, mixed_case)  # create a list enumerating each word in a single segment/article and its label: [...{id, word, label}...]
                 record_index = list(all_records.keys())[d]
                 all_records[record_index].extend(record)
                 del record
 
-    if split == 'train':
-        mixed_case = mixed_case[mixed_case["Original"].str.contains("'s") == False]
-        mixed_case = mixed_case.groupby(mixed_case.columns.tolist(), as_index=False).size()
-        mixed_case = mixed_case.sort_values('size', ascending=False).drop_duplicates('Plain').sort_index()
-        mixed_case = mixed_case.drop(columns=['size'])
-        mixed_case = mixed_case.reset_index(drop=True)
-        mixed_case.to_csv("rpunct/mixed-casing.csv")
+    if split == 'train' and make_mc_database:
+        with open('rpunct/mixed-casing.json', 'w') as f:
+            json.dump(mixed_case, f)
 
     return all_records
 
-def create_record(row):
+def create_record(row, mixed_case):
     """
     Create labels for Punctuation Restoration task for each token.
     """
@@ -186,8 +183,6 @@ def create_record(row):
     # convert string of text (from row) into a list of words
     # row: str -> observation: list[str]
     observation = row.replace('\\n', ' ').split()
-
-    mixed_case = pd.DataFrame(columns=['Original', 'Plain'])
 
     # remove punctuation of each word, and label it with a tag representing what punctuation it did have
     for obs in observation:
@@ -221,22 +216,17 @@ def create_record(row):
             new_lab += "M"  # `xM` => mixed-case
 
             # populate database of mixed-case instances
-            less_stripped_obs = re.sub(r"[^0-9a-zA-Z']", "", obs)
+            if mixed_case is not None:
+                less_stripped_obs = re.sub(r"[^0-9a-zA-Z']", "", obs)
 
-            if not less_stripped_obs[0].isalnum():
-                less_stripped_obs = less_stripped_obs[1:]
+                if not less_stripped_obs[0].isalnum():
+                    less_stripped_obs = less_stripped_obs[1:]
 
-            if not less_stripped_obs[-1].isalnum():
-                less_stripped_obs = less_stripped_obs[:-1]
+                if not less_stripped_obs[-1].isalnum():
+                    less_stripped_obs = less_stripped_obs[:-1]
 
-            if less_stripped_obs[-2:] != "'s" and less_stripped_obs[-1:] != 's':
-                new_mc_input = pd.DataFrame(
-                    [[less_stripped_obs, text_obs]],
-                    columns=['Original', 'Plain']
-                )
-
-                mixed_case = pd.concat([mixed_case, new_mc_input], ignore_index=True)
-                del new_mc_input
+                if less_stripped_obs[-2:] != "'s" and less_stripped_obs[-1:] != 's' and text_obs not in mixed_case.keys():
+                    mixed_case.update({text_obs: less_stripped_obs})
 
         # add the word and its label to the dataset
         new_obs.append({'sentence_id': 0, 'words': text_obs, 'labels': new_lab})

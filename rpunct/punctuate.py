@@ -5,6 +5,7 @@ __author__ = "Daulet N."
 __email__ = "daulet.nurmanbetov@gmail.com"
 
 import os
+import json
 import logging
 import pandas as pd
 from langdetect import detect
@@ -18,10 +19,13 @@ TERMINALS = ['.', '!', '?']
 
 class RestorePuncts:
     def __init__(self, wrds_per_pred=250, use_cuda=True, model_location='felflare/bert-restore-punctuation'):
+        self.mc_database = self.load_mixed_case_database()
+
         self.model_location = model_location
         self.wrds_per_pred = wrds_per_pred
         self.overlap_wrds = 30
         self.valid_labels = VALID_LABELS
+
         self.model = NERModel(
             "bert",
             self.model_location,
@@ -32,7 +36,6 @@ class RestorePuncts:
                 "max_seq_length": 512
             }
         )
-        self.mc_database = self.load_mixed_case_database()
 
     def punctuate(self, text: str, lang:str=''):
         """
@@ -166,11 +169,11 @@ class RestorePuncts:
         """
         punct_resp = ""
 
-        # cycle through the list containing each word and its predicted label
+        # Cycle through the list containing each word and its predicted label
         for i in full_pred:
             word, label = i
 
-            # implement capitalisation (lowercase/capitalised/uppercase/mixed-case)
+            # Implement capitalisation (lowercase/capitalised/uppercase/mixed-case)
             if label[-1] == "U":  # `xU` => uppercase
                 punct_wrd = word.upper()
 
@@ -178,36 +181,33 @@ class RestorePuncts:
                 punct_wrd = word.capitalize()
 
             elif label[-1] == "M":  # `xM` => mixed-case
-                # if acronym is plural/possessive, set the trailing `s` as lowercase. Otherwise, search database for correct mixed-casing
+                # Search the database for correct mixed-casing. If acronym is plural/possessive, set the trailing `s` as lowercase.
                 if len(word) > 2 and word[-2:] == "'s":
                     punct_wrd = self.fetch_mixed_casing(word[:-2]) + "'s"  # possessive
-                elif word[-1:] == 's':
+                elif len(word) > 1 and word[-1:] == "s":
                     punct_wrd = self.fetch_mixed_casing(word[:-1]) + "s"  # plural
                 else:
                     punct_wrd = self.fetch_mixed_casing(word)  # general mixed-case
 
-            else:
-                # `xO` => lowercase
+            else:  # `xO` => lowercase
                 punct_wrd = word
 
-                # if previous word ended with a terminal, ensure this word is capitalised
+                # Ensure terminals are followed by capitals
                 if len(punct_resp) > 1 and punct_resp[-2] in TERMINALS:
                     punct_wrd = punct_wrd.capitalize()
 
-            # if the label indicates punctuation comes after this word, add it
+            # Add classified punctuation mark (and space) after word
             if label[0] != "O":
                 punct_wrd += label[0]
 
             punct_resp += punct_wrd + " "
 
-        # remove unnecessary trailing or leading whitespace
+        # Remove unnecessary whitespace and ensure the first word is capitalised
         punct_resp = punct_resp.strip()
         punct_resp = punct_resp.replace("- ", "-")
-
-        # Ensure the first word is capitalised
         punct_resp = punct_resp[0].capitalize() + punct_resp[1:]
 
-        # Append trailing period if doesn't exist.
+        # Ensure text ends with a terminal
         if punct_resp[-1].isalnum():
             punct_resp += "."
         elif punct_resp[-1] not in TERMINALS:
@@ -215,30 +215,26 @@ class RestorePuncts:
 
         return punct_resp
 
-    def load_mixed_case_database(self, file='mixed-casing.csv'):
+    @staticmethod
+    def load_mixed_case_database(file='rpunct/mixed-casing.json'):
         # load database of mixed-case instances
         try:
-            database = pd.read_csv('rpunct/' + file)
+            with open(file) as f:
+                database = json.load(f)
         except FileNotFoundError:
-            try:
-                database = pd.read_csv(file)
-            except FileNotFoundError:
-                database = None
+            database = None
 
         return database
 
     def fetch_mixed_casing(self, plaintext):
-        # if database not found, return generic acronym
+        # In case of no database, return as uppercase acronym
         if self.mc_database is None:
             return plaintext.upper()
 
-        # locate plaintext within mixed-case database
-        word_index = self.mc_database.index[self.mc_database['Plain'] == plaintext]
+        correct_capitalisation = self.mc_database.get(plaintext)  # fetch from database
 
-        # if plaintext found, return the capitalised version
-        if len(word_index) > 0:
-            correct_capitalisation = self.mc_database.at[word_index[0], "Original"]
-        else:
+        # For words not in the database, return as uppercase acronym
+        if correct_capitalisation is None:
             correct_capitalisation = plaintext.upper()
 
         return correct_capitalisation
