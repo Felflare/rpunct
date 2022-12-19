@@ -176,7 +176,7 @@ class RestorePuncts:
             if label[-1] == "U":  # `xU` => uppercase
                 punct_wrd = word.upper()
 
-                if len(word) > 2 and word[-2:] == "'s":
+                if len(word) > 2 and word[-2:] == "'S":
                     punct_wrd = punct_wrd[:-2] + "'s"  # possessive
 
             elif label[-1] == "C":  # `xC` => capitalised
