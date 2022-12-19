@@ -29,7 +29,7 @@ def create_composite_dataset(distinct, train_split, dataset_names, balance):
         # collect dataset from file
         if name == 'news-articles':
             # collect articles part of composite dataset (from JSONL files)
-            dataset_dir = collate_news_articles(2020, 2022, summaries=False, train_split=1.0, composite=True, distinct_composite=distinct)
+            dataset_dir = collate_news_articles(2019, 2022, summaries=False, train_split=1.0, composite=True, distinct_composite=distinct)
             dataset_path = os.path.join(dataset_dir, 'train_news.csv')
 
         elif name == 'news-transcripts':
@@ -155,7 +155,7 @@ def collate_news_articles(start_date, end_date, summaries, train_split=0.9, comp
     pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
 
     train = pd.DataFrame(train, columns=['text'])
-    train['text'] = train['text'].str.replace('\n',' ')
+    train['text'] = train['text'].str.replace('\n', ' ')
     csv_path_train = os.path.join(dataset_path, 'train_news.csv')
     train.to_csv(csv_path_train, index=False)
     del train

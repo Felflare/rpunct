@@ -7,7 +7,6 @@ __email__ = "daulet.nurmanbetov@gmail.com"
 import os
 import json
 import logging
-import pandas as pd
 from langdetect import detect
 from simpletransformers.ner import NERModel
 
@@ -176,6 +175,9 @@ class RestorePuncts:
             # Implement capitalisation (lowercase/capitalised/uppercase/mixed-case)
             if label[-1] == "U":  # `xU` => uppercase
                 punct_wrd = word.upper()
+
+                if len(word) > 2 and word[-2:] == "'s":
+                    punct_wrd = punct_wrd[:-2] + "'s"  # possessive
 
             elif label[-1] == "C":  # `xC` => capitalised
                 punct_wrd = word.capitalize()

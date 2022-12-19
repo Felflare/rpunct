@@ -14,6 +14,7 @@ tests/
 rpunct/__pycache__
 rpunct/rpunct_recoverer.py
 rpunct/number_recoverer.py
+rpunct/punctuate_old.py
 provision.sh
 provision_linguine.sh
 .DS_Store
