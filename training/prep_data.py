@@ -16,7 +16,6 @@ from training.get_data import *
 
 PATH = './training/datasets/'
 WORDS_PER_FILE = 15000000
-SPOKEN_ABBREVIATIONS = ["Aids", "Apec", "Eta", "Farc", "Nafta", "Nasa", "Opec", "Unite"]
 
 
 def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10', composite_datasets_list=None, composite_data_distinctness=False, dataset_balance='o'):
@@ -128,10 +127,6 @@ def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, 
 
     # insert a space after intra-word hyphens
     data_split['text'] = data_split['text'].str.replace("-", "- ")
-
-    # replace spoken acronyms with their correct capitalisation:
-    for word in SPOKEN_ABBREVIATIONS:
-        data_split['text'] = data_split['text'].str.replace(word.upper(), word)
 
     # if we are dealing with a composite dataset of distinct parts, split the prep of each to be processed separately
     if composite_and_distinct and split == 'train':
