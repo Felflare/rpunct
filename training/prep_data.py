@@ -115,7 +115,7 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
     return check
 
 
-def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, dataset_names=None, make_mc_database=False):
+def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, dataset_names=None, make_mc_database=True):
     # load in train/test data
     data_split_path = os.path.join(path, f'{split}_{data_type}.csv')
     data_split = pd.read_csv(data_split_path)
