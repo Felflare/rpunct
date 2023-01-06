@@ -21,100 +21,6 @@ def remove_temp_files(dataset_path, extensions=['npy', 'csv'], traintest=''):
             p.unlink()
 
 
-def create_composite_dataset(distinct, train_split, dataset_names, balance):
-    # create a collection of all individual datasets needed to construct composite datasets
-    all_datasets = []
-
-    for name in dataset_names:
-        # collect dataset from file
-        if name == 'news-articles':
-            # collect articles part of composite dataset (from JSONL files)
-            dataset_dir = collate_news_articles(2019, 2022, summaries=False, train_split=1.0, composite=True)
-            dataset_path = os.path.join(dataset_dir, 'train_news.csv')
-
-        elif name == 'news-transcripts':
-            # collect transcripts part of dataset
-            dataset_dir = collate_news_transcripts(train_split=0.9998, composite=True)
-            dataset_path = os.path.join(dataset_dir, 'train_transcripts.csv')
-
-            # only construct testing data from transcripts dataset
-            test_dataset_path_input = os.path.join(dataset_dir, 'test_transcripts.csv')
-            transcripts_test = pd.read_csv(test_dataset_path_input)
-            transcripts_test.dropna(inplace=True)
-            transcripts_test.reset_index(drop=True, inplace=True)
-
-            test_dataset_path_output = os.path.join(dataset_dir, 'test_composite.csv')
-            transcripts_test.to_csv(test_dataset_path_output, index=False)
-            del transcripts_test
-
-        elif name == 'historical-interviews':
-            # collect historical interviews part of dataset
-            dataset_dir = collate_historical_interviews(composite=True)
-            dataset_path = os.path.join(dataset_dir, 'train_interviews.csv')
-
-        else:
-            raise ValueError("Composite dataset cannot be built with unknown source datasets.")
-
-        # format dataset
-        dataset = pd.read_csv(dataset_path)
-        dataset.dropna(inplace=True)
-        dataset.reset_index(drop=True, inplace=True)
-
-        # if wanting to create distinct composite dataset (i.e. separate pre-train/tune) then label each dataset to be split up later
-        if distinct:
-            dataset['source'] = name
-
-        # add to dataset collection
-        all_datasets.append(dataset.copy())
-        del dataset
-
-    # combine two news datasets together in proportion denoted by `balance`
-    # if balance == '1:1':  # even balance
-    #     min_length = min(map(len, all_datasets))
-    #     all_datasets = [d[:min_length] for d in all_datasets]
-    #     print("\n> Combining datasets in 1:1 proportion")
-    # elif balance == '2:1' and len(all_datasets) == 2:
-    #     proportion = int(len(all_datasets[0]) / 2)
-
-    #     if len(all_datasets[1]) > proportion and len(all_datasets) == 2:
-    #         all_datasets = [all_datasets[0], all_datasets[1][:proportion]]
-    #         print("\n> Combining datasets in 2:1 proportion")
-    #     else:
-    #         print("\n> Combining datasets of original length")
-    # elif balance == '1:2' and len(all_datasets) == 2:
-    #     proportion = int(len(all_datasets[1]) / 2)
-
-    #     if len(all_datasets[0]) > proportion:
-    #         all_datasets = [all_datasets[0][:proportion], all_datasets[1]]
-    #         print("\n> Combining datasets of in 1:2 proportion")
-    #     else:
-    #         print("\n> Combining datasets of original length")
-    # elif balance == '2:3' and len(all_datasets) == 2:
-    #     proportion = int(len(all_datasets[1]) / 3) * 2
-
-    #     if len(all_datasets[0]) > proportion:
-    #         all_datasets = [all_datasets[0][:proportion], all_datasets[1]]
-    #         print("\n> Combining datasets of in 2:3 proportion")
-    #     else:
-    #         print("\n> Combining datasets of original length")
-    # else:  # `balance = 'o'` => original dataset sizes
-    #     print("\n> Combining datasets of original length")
-
-    composite_data = pd.concat(all_datasets, ignore_index=True)
-    del all_datasets
-
-    # shuffle samples (not necessary if splitting into distinct composite datasets)
-    if not distinct:
-        composite_data = composite_data.sample(frac=1, random_state=42).reset_index(drop=True)
-
-    # save composite dataset to csv file
-    csv_path_train = os.path.join(dataset_dir, 'train_composite.csv')
-    composite_data.to_csv(csv_path_train, index=False)
-    del composite_data
-
-    return dataset_dir
-
-
 def collate_news_articles(start_date, end_date, summaries, train_split=0.9, composite=False):
     if composite:
         summary_or_body = 'body'
@@ -184,12 +90,13 @@ def collate_news_transcripts(train_split=0.9, composite=False):
         with open(json_path, 'r') as f:
             obj = json.load(f)
 
-        data = pd.DataFrame(obj["Transcripts"])
-        speaker_segments = np.concatenate(data["Items"]).flat
+        speaker_segments = []
+        for data in obj["Transcripts"]:
+            speaker_segments.extend(data["Items"])
+
         transcripts = np.append(transcripts, speaker_segments)
 
         del obj
-        del data
         del speaker_segments
 
     # train-test split
@@ -264,63 +171,90 @@ def download_reviews():
     return dataset_path
 
 
-def collate_historical_interviews(train_split=1.0, composite=False):
-    print(f"\n> Assembling interview transcripts:")
+def create_composite_dataset(distinct, train_split, dataset_names, balance):
+    # create a collection of all individual datasets needed to construct composite datasets
+    all_datasets = []
 
-    if composite:
-        dataset_path = os.path.join(PATH, 'composite')
-    else:
-        dataset_path = os.path.join(PATH, 'historical-interview-transcripts')
+    for name in dataset_names:
+        # collect dataset from file
+        if name == 'news-articles':
+            # collect articles part of composite dataset (from JSONL files)
+            dataset_dir = collate_news_articles(2019, 2022, summaries=False, train_split=1.0, composite=True)
+            dataset_path = os.path.join(dataset_dir, 'train_news.csv')
 
-    dataset_files = [f'{dir}/{dir}.txt' for dir in os.listdir(INTERVIEW_PATH)]
-    interviews = []
+        elif name == 'news-transcripts':
+            # collect transcripts part of dataset
+            dataset_dir = collate_news_transcripts(train_split=0.9998, composite=True)
+            dataset_path = os.path.join(dataset_dir, 'train_transcripts.csv')
 
-    for dataset_txt in dataset_files:
-        file_path = os.path.join(INTERVIEW_PATH, dataset_txt)
+            # only construct testing data from transcripts dataset
+            test_dataset_path_input = os.path.join(dataset_dir, 'test_transcripts.csv')
+            transcripts_test = pd.read_csv(test_dataset_path_input)
+            transcripts_test.dropna(inplace=True)
+            transcripts_test.reset_index(drop=True, inplace=True)
 
-        with open(file_path, 'r') as fp:
-            data = np.array(fp.readlines())
+            test_dataset_path_output = os.path.join(dataset_dir, 'test_composite.csv')
+            transcripts_test.to_csv(test_dataset_path_output, index=False)
+            del transcripts_test
 
-            mapping =  dict.fromkeys(range(32))
-            data = [d.translate(mapping) for d in data if d not in ['\t', '\n']]
+        else:
+            raise ValueError("Composite dataset cannot be built with unknown source datasets.")
 
-        interviews.extend([d.strip() for d in data if "{" not in d and "\\" not in d])
-        del data
+        # format dataset
+        dataset = pd.read_csv(dataset_path)
+        dataset.dropna(inplace=True)
+        dataset.reset_index(drop=True, inplace=True)
 
-    # train-test split
-    random.seed(42)
-    random.shuffle(interviews)
-    split = math.ceil(train_split * len(interviews))
-    train = interviews[:split]
-    test = interviews[split:]
+        # if wanting to create distinct composite dataset (i.e. separate pre-train/tune) then label each dataset to be split up later
+        if distinct:
+            dataset['source'] = name
 
-    print(f"\t* Interview transcripts in total    : {len(interviews)}")
-    print(f"\t* Interview transcripts in train set: {len(train)}")
-    print(f"\t* Interview transcripts in test set : {len(test)}")
-    del interviews
+        # add to dataset collection
+        all_datasets.append(dataset.copy())
+        del dataset
 
-    # save train/test data to csv
-    pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
+    # combine two news datasets together in proportion denoted by `balance`
+    # if balance == '1:1':  # even balance
+    #     min_length = min(map(len, all_datasets))
+    #     all_datasets = [d[:min_length] for d in all_datasets]
+    #     print("\n> Combining datasets in 1:1 proportion")
+    # elif balance == '2:1' and len(all_datasets) == 2:
+    #     proportion = int(len(all_datasets[0]) / 2)
 
-    train = pd.DataFrame(train, columns=['text'])
-    train['text'] = train['text'].str.replace("_", '')
-    train['text'] = train['text'].replace('', np.nan)
-    train['text'] = train['text'].dropna()
+    #     if len(all_datasets[1]) > proportion and len(all_datasets) == 2:
+    #         all_datasets = [all_datasets[0], all_datasets[1][:proportion]]
+    #         print("\n> Combining datasets in 2:1 proportion")
+    #     else:
+    #         print("\n> Combining datasets of original length")
+    # elif balance == '1:2' and len(all_datasets) == 2:
+    #     proportion = int(len(all_datasets[1]) / 2)
 
-    csv_path_train = os.path.join(dataset_path, 'train_interviews.csv')
-    train.to_csv(csv_path_train, index=False)
-    del train
+    #     if len(all_datasets[0]) > proportion:
+    #         all_datasets = [all_datasets[0][:proportion], all_datasets[1]]
+    #         print("\n> Combining datasets of in 1:2 proportion")
+    #     else:
+    #         print("\n> Combining datasets of original length")
+    # elif balance == '2:3' and len(all_datasets) == 2:
+    #     proportion = int(len(all_datasets[1]) / 3) * 2
 
-    test = pd.DataFrame(test, columns=['text'])
-    test['text'] = test['text'].str.replace("_", '')
-    test['text'] = test['text'].replace('', np.nan)
-    test['text'] = test['text'].dropna()
+    #     if len(all_datasets[0]) > proportion:
+    #         all_datasets = [all_datasets[0][:proportion], all_datasets[1]]
+    #         print("\n> Combining datasets of in 2:3 proportion")
+    #     else:
+    #         print("\n> Combining datasets of original length")
+    # else:  # `balance = 'o'` => original dataset sizes
+    #     print("\n> Combining datasets of original length")
 
-    csv_path_test = os.path.join(dataset_path, 'test_interviews.csv')
-    test.to_csv(csv_path_test, index=False)
-    del test
+    composite_data = pd.concat(all_datasets, ignore_index=True)
+    del all_datasets
 
-    # remove pre-existing data files from previous iterations
-    remove_temp_files(dataset_path, extensions=['npy', 'txt'])
+    # shuffle samples (not necessary if splitting into distinct composite datasets)
+    if not distinct:
+        composite_data = composite_data.sample(frac=1, random_state=42).reset_index(drop=True)
 
-    return dataset_path
+    # save composite dataset to csv file
+    csv_path_train = os.path.join(dataset_dir, 'train_composite.csv')
+    composite_data.to_csv(csv_path_train, index=False)
+    del composite_data
+
+    return dataset_dir
