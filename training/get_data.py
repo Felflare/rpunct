@@ -138,6 +138,71 @@ def collate_news_transcripts(train_split=0.9, composite=False):
     return dataset_path
 
 
+def collate_subtitles(train_split=0.9, composite=False):
+    # input transcripts from json files
+    print(f"\n> Assembling subtitles data:")
+
+    news_subs_path = os.path.join(PATH, 'subtitles_news_202212')
+    news_subs_datasets = [os.path.join(news_subs_path, file) for file in os.listdir(news_subs_path) if file.endswith('.json')]
+    other_subs_path = os.path.join(PATH, 'subtitles_other_202212')
+    other_subs_datasets = [os.path.join(other_subs_path, file) for file in os.listdir(other_subs_path) if file.endswith('.json')]
+
+    print(f"\t* News subtitle transcripts : {len(news_subs_datasets)}")
+    print(f"\t* Other subtitle transcripts: {len(other_subs_datasets)}")
+
+    subs_datasets = news_subs_datasets + other_subs_datasets
+    transcripts = np.empty(shape=(0), dtype=object)
+
+    print(f"\t* All subtitle transcripts  : {len(subs_datasets)}")
+
+    for json_path in subs_datasets:
+        with open(json_path, 'r') as f:
+            obj = json.load(f)
+
+        data = obj["results"]["transcripts"][0]["transcript"]
+        transcripts = np.append(transcripts, data)
+
+        del obj
+        del data
+
+    # train-test split
+    random.seed(42)
+    random.shuffle(transcripts)
+    split = math.ceil(train_split * len(transcripts))
+    train = transcripts[:split]
+    test = transcripts[split:]
+
+    print(f"\t* {train_split:.1f} : {1-train_split:.1f} data split")
+    print(f"\t* Transcripts in train set: {len(train)} / {len(transcripts)}")
+    print(f"\t* Transcripts in test set : {len(test)} / {len(transcripts)}")
+    del transcripts
+
+    # save train/test data to csv
+    if composite:
+        dataset_path = os.path.join(PATH, 'composite')
+    else:
+        dataset_path = os.path.join(PATH, f'subtitles')
+
+    pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
+
+    train = pd.DataFrame(train, columns=['text'])
+    train['text'] = train['text'].str.replace('\n',' ')
+    csv_path_train = os.path.join(dataset_path, 'train_subtitles.csv')
+    train.to_csv(csv_path_train, index=False)
+    del train
+
+    test = pd.DataFrame(test, columns=['text'])
+    test['text'] = test['text'].str.replace('\n',' ')
+    csv_path_test = os.path.join(dataset_path, 'test_subtitles.csv')
+    test.to_csv(csv_path_test, index=False)
+    del test
+
+    # remove pre-existing data files from previous iterations
+    remove_temp_files(dataset_path, extensions=['npy', 'txt'])
+
+    return dataset_path
+
+
 def download_reviews():
     # download yelp reviews data from tensorflow_datasets
     train, test = tfds.load('yelp_polarity_reviews', split=['train', 'test'], shuffle_files=True)
