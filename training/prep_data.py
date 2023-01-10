@@ -6,6 +6,7 @@ __email__ = "daulet.nurmanbetov@gmail.com"
 import os
 import re
 import math
+import json
 import random
 import pathlib
 import numpy as np
@@ -14,8 +15,7 @@ from tqdm import tqdm
 from training.get_data import *
 
 PATH = './training/datasets/'
-WORDS_PER_FILE = 15000000
-SPOKEN_ABBREVIATIONS = {"Aids", "Apec", "Eta", "Farc", "Nafta", "Nasa", "Opec", "Unite"}
+WORDS_PER_FILE = 35000000
 
 
 def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10', composite_datasets_list=None, composite_data_distinctness=False, dataset_balance='o'):
@@ -43,6 +43,13 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
 
         data_type = 'transcripts'
         dataset_path = collate_news_transcripts(train_split=split)
+
+    elif data_type == 'subtitles':
+        # collect data from subtitles JSON files
+        print(f"\n> Preparing data from source: subtitles (all genres)")
+        tt_split = tt_split.split(':')
+        split = int(tt_split[0]) / 100
+        dataset_path = collate_subtitles(train_split=split)
 
     elif data_type == 'composite':
         # error checking
@@ -115,7 +122,7 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
     return check
 
 
-def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, dataset_names=None):
+def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, dataset_names=None, make_mc_database=False):
     # load in train/test data
     data_split_path = os.path.join(path, f'{split}_{data_type}.csv')
     data_split = pd.read_csv(data_split_path)
@@ -127,10 +134,6 @@ def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, 
 
     # insert a space after intra-word hyphens
     data_split['text'] = data_split['text'].str.replace("-", "- ")
-
-    # replace spoken acronyms with their correct capitalisation:
-    for word in SPOKEN_ABBREVIATIONS:
-        data_split['text'] = data_split['text'].str.replace(word.upper(), word)
 
     # if we are dealing with a composite dataset of distinct parts, split the prep of each to be processed separately
     if composite_and_distinct and split == 'train':
@@ -151,19 +154,28 @@ def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, 
         'B': []
     }
 
+    if make_mc_database:
+        mixed_case = {}
+    else:
+        mixed_case = None
+
     # constuct df of text and labels (punctuation tag per word) for primary (and possibly secondary) dataset
     for d in range(len(datasets)):
         with tqdm(datasets[d]) as T:
+            T.set_description(f"        * Labelling {split}ing instances ({d})")
             for segment in T:
-                T.set_description(f"        * Labelling {split}ing instances ({d})")
-                record = create_record(segment)  # create a list enumerating each word in a single segment/article and its label: [...{id, word, label}...]
+                record, mixed_case = create_record(segment, mixed_case)  # create a list enumerating each word in a single segment/article and its label: [...{id, word, label}...]
                 record_index = list(all_records.keys())[d]
                 all_records[record_index].extend(record)
                 del record
 
+    if split == 'train' and make_mc_database:
+        with open('rpunct/mixed-casing.json', 'w') as f:
+            json.dump(mixed_case, f)
+
     return all_records
 
-def create_record(row):
+def create_record(row, mixed_case):
     """
     Create labels for Punctuation Restoration task for each token.
     """
@@ -205,13 +217,26 @@ def create_record(row):
         else:
             new_lab += "M"  # `xM` => mixed-case
 
+            # populate database of mixed-case instances
+            if mixed_case is not None:
+                less_stripped_obs = re.sub(r"[^0-9a-zA-Z']", "", obs)
+
+                if not less_stripped_obs[0].isalnum():
+                    less_stripped_obs = less_stripped_obs[1:]
+
+                if not less_stripped_obs[-1].isalnum():
+                    less_stripped_obs = less_stripped_obs[:-1]
+
+                if less_stripped_obs[-2:] != "'s" and less_stripped_obs[-1:] != 's' and text_obs not in mixed_case.keys():
+                    mixed_case.update({text_obs: less_stripped_obs})
+
         # add the word and its label to the dataset
         new_obs.append({'sentence_id': 0, 'words': text_obs, 'labels': new_lab})
 
         del text_obs
         del new_lab
 
-    return new_obs
+    return new_obs, mixed_case
 
 
 def create_training_samples(words_and_labels, file_out_nm, file_out_path=PATH, train_or_test='train', size=WORDS_PER_FILE):
@@ -242,10 +267,9 @@ def create_training_samples(words_and_labels, file_out_nm, file_out_path=PATH, t
         observations = np.empty(shape=(len(splits), 500, 3), dtype=object)
 
         with tqdm(range(len(splits))) as S:
+            S.set_description(f"                - Splitting data chunk {_round + 1}")
             for j in S:
                 a, b = splits[j][0], splits[j][1]
-                S.set_description(f"                - Splitting data chunk {_round + 1}")
-
                 data_slice = records.iloc[a: b, ].values.tolist()  # collect the 500 word-label dicts between the specified indices
                 data_slice = np.pad(data_slice, [(0, 500 - len(data_slice)), (0, 0)], 'empty')
 

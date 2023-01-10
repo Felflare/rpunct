@@ -5,8 +5,8 @@ __author__ = "Daulet N."
 __email__ = "daulet.nurmanbetov@gmail.com"
 
 import os
+import json
 import logging
-import pandas as pd
 from langdetect import detect
 from simpletransformers.ner import NERModel
 
@@ -18,10 +18,13 @@ TERMINALS = ['.', '!', '?']
 
 class RestorePuncts:
     def __init__(self, wrds_per_pred=250, use_cuda=True, model_location='felflare/bert-restore-punctuation'):
+        self.mc_database = self.load_mixed_case_database()
+
         self.model_location = model_location
         self.wrds_per_pred = wrds_per_pred
         self.overlap_wrds = 30
         self.valid_labels = VALID_LABELS
+
         self.model = NERModel(
             "bert",
             self.model_location,
@@ -158,65 +161,85 @@ class RestorePuncts:
         assert [i[0] for i in output_text] == split_full_text
         return output_text
 
-    @staticmethod
-    def punctuate_texts(full_pred: list):
+    def punctuate_texts(self, full_pred: list):
         """
         Given a list of Predictions from the model, applies the predictions to text,
         thus punctuating it.
         """
         punct_resp = ""
 
-        # cycle through the list containing each word and its predicted label
+        # Cycle through the list containing each word and its predicted label
         for i in full_pred:
             word, label = i
 
-            # implement capitalisation (lowercase/capitalised/uppercase/mixed-case)
-            if label[-1] == "U":
-                # `xU` => uppercase
-                punct_wrd = word.upper()
-            elif label[-1] == "C":
-                # `xC` => capitalised
-                punct_wrd = word.capitalize()
-            elif label[-1] == "M":
-                # `xM` => mixed-case --- atm just put into uppercase but needs adapting later
+            # Implement capitalisation (lowercase/capitalised/uppercase/mixed-case)
+            if label[-1] == "U":  # `xU` => uppercase
                 punct_wrd = word.upper()
 
-                # if acronym is plural/possessive, set the trailing `s` as lowercase
-                if len(punct_wrd) > 2:
-                    if punct_wrd[-2:] == "'S":
-                        # possessive
-                        punct_wrd = punct_wrd[:-2] + "'s"
-                    elif punct_wrd[-1:] == 'S':
-                        # plural
-                        punct_wrd = punct_wrd[:-1] + "s"
-            else:
-                # `xO` => lowercase
+                if len(word) > 2 and word[-2:] == "'S":
+                    punct_wrd = punct_wrd[:-2] + "'s"  # possessive
+
+            elif label[-1] == "C":  # `xC` => capitalised
+                punct_wrd = word.capitalize()
+
+            elif label[-1] == "M":  # `xM` => mixed-case
+                # Search the database for correct mixed-casing. If acronym is plural/possessive, set the trailing `s` as lowercase.
+                if len(word) > 2 and word[-2:] == "'s":
+                    punct_wrd = self.fetch_mixed_casing(word[:-2]) + "'s"  # possessive
+                elif len(word) > 1 and word[-1:] == "s":
+                    punct_wrd = self.fetch_mixed_casing(word[:-1]) + "s"  # plural
+                else:
+                    punct_wrd = self.fetch_mixed_casing(word)  # general mixed-case
+
+            else:  # `xO` => lowercase
                 punct_wrd = word
 
-            # if the label indicates punctuation comes after this word, add it
+                # Ensure terminals are followed by capitals
+                if len(punct_resp) > 1 and punct_resp[-2] in TERMINALS:
+                    punct_wrd = punct_wrd.capitalize()
+
+            # Add classified punctuation mark (and space) after word
             if label[0] != "O":
                 punct_wrd += label[0]
 
-            # if previous word ended with a terminal, ensure this word is capitalised
-            if punct_resp == "" or (len(punct_resp) > 1 and punct_resp[-2] in TERMINALS):
-                punct_wrd = punct_wrd.capitalize()
-
             punct_resp += punct_wrd + " "
 
-        # remove unnecessary trailing or leading whitespace
+        # Remove unnecessary whitespace and ensure the first word is capitalised
         punct_resp = punct_resp.strip()
         punct_resp = punct_resp.replace("- ", "-")
-
-        # Ensure the first word is capitalised
         punct_resp = punct_resp[0].capitalize() + punct_resp[1:]
 
-        # Append trailing period if doesn't exist.
+        # Ensure text ends with a terminal
         if punct_resp[-1].isalnum():
             punct_resp += "."
         elif punct_resp[-1] not in TERMINALS:
             punct_resp = punct_resp[:-1] + "."
 
         return punct_resp
+
+    @staticmethod
+    def load_mixed_case_database(file='rpunct/mixed-casing.json'):
+        # load database of mixed-case instances
+        try:
+            with open(file) as f:
+                database = json.load(f)
+        except FileNotFoundError:
+            database = None
+
+        return database
+
+    def fetch_mixed_casing(self, plaintext):
+        # In case of no database, return as uppercase acronym
+        if self.mc_database is None:
+            return plaintext.upper()
+
+        correct_capitalisation = self.mc_database.get(plaintext)  # fetch from database
+
+        # For words not in the database, return as uppercase acronym
+        if correct_capitalisation is None:
+            correct_capitalisation = plaintext.upper()
+
+        return correct_capitalisation
 
 
 def run_rpunct(use_cuda=False, input_txt='tests/sample_text.txt', output_txt=None, model_location='felflare/bert-restore-punctuation'):
