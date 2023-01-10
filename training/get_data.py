@@ -5,10 +5,10 @@ import random
 import pathlib
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 import tensorflow_datasets as tfds
 
 PATH = './training/datasets/'
-INTERVIEW_PATH = '/Users/tompo/.bbc-data/bbc/speech/transcription/evaluation/bbc-oral-history-project/0.0.1/data/original-metadata/GoldStandardNC'
 
 
 def remove_temp_files(dataset_path, extensions=['npy', 'csv'], traintest=''):
@@ -146,24 +146,24 @@ def collate_subtitles(train_split=0.9, composite=False):
     news_subs_datasets = [os.path.join(news_subs_path, file) for file in os.listdir(news_subs_path) if file.endswith('.json')]
     other_subs_path = os.path.join(PATH, 'subtitles_other_202212')
     other_subs_datasets = [os.path.join(other_subs_path, file) for file in os.listdir(other_subs_path) if file.endswith('.json')]
-
-    print(f"\t* News subtitle transcripts : {len(news_subs_datasets)}")
-    print(f"\t* Other subtitle transcripts: {len(other_subs_datasets)}")
-
     subs_datasets = news_subs_datasets + other_subs_datasets
     transcripts = np.empty(shape=(0), dtype=object)
 
+    print(f"\t* News subtitle transcripts : {len(news_subs_datasets)}")
+    print(f"\t* Other subtitle transcripts: {len(other_subs_datasets)}")
     print(f"\t* All subtitle transcripts  : {len(subs_datasets)}")
 
-    for json_path in subs_datasets:
-        with open(json_path, 'r') as f:
-            obj = json.load(f)
+    with tqdm(subs_datasets) as D:
+        D.set_description("        * Reading subtitle data")
+        for json_path in D:
+            with open(json_path, 'r') as f:
+                obj = json.load(f)
 
-        data = obj["results"]["transcripts"][0]["transcript"]
-        transcripts = np.append(transcripts, data)
+            data = obj["results"]["transcripts"][0]["transcript"]
+            transcripts = np.append(transcripts, data)
 
-        del obj
-        del data
+            del obj
+            del data
 
     # train-test split
     random.seed(42)

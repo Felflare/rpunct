@@ -14,12 +14,12 @@ train_parser = subparsers.add_parser('train', help='Execute model training proce
 test_parser = subparsers.add_parser('test', help='Execute model testing process.')
 punct_parser = subparsers.add_parser('punct', help='Run rpunct on a given input of plaintext.')
 
-# PREP_DATA.PY
 # Data subparsers
 data_source_subparsers = data_parser.add_subparsers(help="Specify type of data to be prepared.", dest="data")
 reviews_data_subparser = data_source_subparsers.add_parser('reviews', help='Yelp reviews dataset.')
 news_data_subparser = data_source_subparsers.add_parser('news', help='BBC News articles dataset.')
 transcripts_data_subparser = data_source_subparsers.add_parser('news-transcripts', help='BBC News transcripts dataset.')
+subtitles_data_subparser = data_source_subparsers.add_parser('subtitles', help='BBC subtitles (all genres) dataset.')
 composite_data_subparser = data_source_subparsers.add_parser('composite', help='Composite dataset including data from multiple sources (e.g. articles and transcripts).')
 
 # Data arguments
@@ -97,7 +97,7 @@ train_parser.add_argument(
     '--data',
     metavar='DATA',
     type=str,
-    choices=['reviews', 'news-summaries', 'composite', 'composite-news-int', 'composite-news-dist', 'news-transcripts'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
+    choices=['reviews', 'news-summaries', 'composite', 'composite-news-int', 'composite-news-dist', 'news-transcripts', 'subtitles'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
     default='news-2014-2022',
     help="Specify the (path to the) dataset to be used to test the model: BBC News (`news-startyr-endyr`) or Yelp reviews (`reviews`) - default is BBC News 2014-2022."
 )
@@ -120,13 +120,13 @@ train_parser.add_argument(
     help="Toggle validation, where the model is evaluated every 5000 steps during training - default is off."
 )
 
-# train_parser.add_argument(
-#     '-ft',
-#     '--finetune',
-#     action='store_true',
-#     default=False,
-#     help="Toggle on fine-tuning training round after initial pre-training stage - default is off."
-# )
+train_parser.add_argument(
+    '-ft',
+    '--finetune',
+    action='store_true',
+    default=False,
+    help="Toggle on fine-tuning training round after initial pre-training stage - default is off."
+)
 
 train_parser.add_argument(
     '-c',
@@ -167,7 +167,7 @@ test_parser.add_argument(
     '--data',
     metavar='DATA',
     type=str,
-    choices=['reviews', 'news-summaries', 'news-sum', 'composite-news-int', 'composite-news-dist', 'comp-news', 'news-transcripts', 'news-trans'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
+    choices=['reviews', 'news-summaries', 'news-sum', 'composite-news-int', 'composite-news-dist', 'comp-news', 'news-transcripts', 'news-trans', 'subtitles'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
     default='news-2014-2022',
     help="Specify the (path to the) dataset to be used to test the model: BBC News (`news-startyr-endyr`) or Yelp reviews (`reviews`) - default is BBC News 2014-2022."
 )
@@ -314,13 +314,12 @@ if __name__ == "__main__":
             )
 
             if not dataset_exists:
-                composite_datasets = ['news-articles', 'news-transcripts']
                 e2e_data(
                     data_type=data_type,
                     start_year=data_start,
                     end_year=data_end,
                     summaries=summaries,
-                    composite_datasets_list=composite_datasets,
+                    composite_datasets_list=['news-articles', 'news-transcripts'],
                     composite_data_distinctness=args.finetune
                 )
 

@@ -15,7 +15,7 @@ from tqdm import tqdm
 from training.get_data import *
 
 PATH = './training/datasets/'
-WORDS_PER_FILE = 15000000
+WORDS_PER_FILE = 40000000
 
 
 def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10', composite_datasets_list=None, composite_data_distinctness=False, dataset_balance='o'):
@@ -43,6 +43,13 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
 
         data_type = 'transcripts'
         dataset_path = collate_news_transcripts(train_split=split)
+
+    elif data_type == 'subtitles':
+        # collect data from subtitles JSON files
+        print(f"\n> Preparing data from source: subtitles (all genres)")
+        tt_split = tt_split.split(':')
+        split = int(tt_split[0]) / 100
+        dataset_path = collate_subtitles(train_split=split)
 
     elif data_type == 'composite':
         # error checking
@@ -115,7 +122,7 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
     return check
 
 
-def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, dataset_names=None, make_mc_database=True):
+def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, dataset_names=None, make_mc_database=False):
     # load in train/test data
     data_split_path = os.path.join(path, f'{split}_{data_type}.csv')
     data_split = pd.read_csv(data_split_path)
@@ -155,8 +162,8 @@ def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, 
     # constuct df of text and labels (punctuation tag per word) for primary (and possibly secondary) dataset
     for d in range(len(datasets)):
         with tqdm(datasets[d]) as T:
+            T.set_description(f"        * Labelling {split}ing instances ({d})")
             for segment in T:
-                T.set_description(f"        * Labelling {split}ing instances ({d})")
                 record, mixed_case = create_record(segment, mixed_case)  # create a list enumerating each word in a single segment/article and its label: [...{id, word, label}...]
                 record_index = list(all_records.keys())[d]
                 all_records[record_index].extend(record)
@@ -260,10 +267,9 @@ def create_training_samples(words_and_labels, file_out_nm, file_out_path=PATH, t
         observations = np.empty(shape=(len(splits), 500, 3), dtype=object)
 
         with tqdm(range(len(splits))) as S:
+            S.set_description(f"                - Splitting data chunk {_round + 1}")
             for j in S:
                 a, b = splits[j][0], splits[j][1]
-                S.set_description(f"                - Splitting data chunk {_round + 1}")
-
                 data_slice = records.iloc[a: b, ].values.tolist()  # collect the 500 word-label dicts between the specified indices
                 data_slice = np.pad(data_slice, [(0, 500 - len(data_slice)), (0, 0)], 'empty')
 
