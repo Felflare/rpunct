@@ -15,7 +15,7 @@ from tqdm import tqdm
 from training.get_data import *
 
 PATH = './training/datasets/'
-WORDS_PER_FILE = 40000000
+WORDS_PER_FILE = 35000000
 
 
 def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10', composite_datasets_list=None, composite_data_distinctness=False, dataset_balance='o'):
