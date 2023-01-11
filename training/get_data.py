@@ -9,6 +9,7 @@ from tqdm import tqdm
 import tensorflow_datasets as tfds
 
 PATH = './training/datasets/'
+COMPOSITE_ARTICLES_START = 2022
 
 
 def remove_temp_files(dataset_path, extensions=['npy', 'csv'], traintest=''):
@@ -21,23 +22,20 @@ def remove_temp_files(dataset_path, extensions=['npy', 'csv'], traintest=''):
             p.unlink()
 
 
-def collate_news_articles(start_date, end_date, summaries, train_split=0.9, composite=False):
-    if composite:
-        summary_or_body = 'body'
-        dataset_path = os.path.join(PATH, 'composite')
-    elif summaries:
-        summary_or_body = 'summary'
-        dataset_path = os.path.join(PATH, f'news-summaries')
-    else:
-        summary_or_body = 'body'
-        dataset_path = os.path.join(PATH, f'news-{start_date}-{end_date}')
+def collate_news_articles(start_date, end_date, summary_or_body='body', train_split=0.9, composite=False, dataset_path=PATH):
+    # create directory for data storage
+    pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
 
+    # remove pre-existing data files from previous iterations
+    remove_temp_files(dataset_path, extensions=['npy', 'txt'])
+
+    # get news article data
     print(f"\n> Assembling news article {summary_or_body[:-1]}ies:")
     news_datasets = [f'news_{date}.jsonl' for date in range(start_date, end_date + 1)]
     articles = []
 
     for dataset_json in news_datasets:
-        json_path = os.path.join(PATH, 'news_data_2014-22/', dataset_json)
+        json_path = os.path.join(PATH, 'source_articles_news', dataset_json)
 
         with open(json_path, 'r') as fp:
             for line in fp:
@@ -58,8 +56,6 @@ def collate_news_articles(start_date, end_date, summaries, train_split=0.9, comp
     del articles
 
     # save train/test data to csv
-    pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
-
     train = pd.DataFrame(train, columns=['text'])
     train['text'] = train['text'].str.replace('\n', ' ')
     csv_path_train = os.path.join(dataset_path, 'train_news.csv')
@@ -72,20 +68,20 @@ def collate_news_articles(start_date, end_date, summaries, train_split=0.9, comp
     test.to_csv(csv_path_test, index=False)
     del test
 
+    return True
+
+
+def collate_news_transcripts(train_split=0.9, composite=False, dataset_path=PATH):
     # remove pre-existing data files from previous iterations
     remove_temp_files(dataset_path, extensions=['npy', 'txt'])
 
-    return dataset_path
-
-
-def collate_news_transcripts(train_split=0.9, composite=False):
     # input transcripts from json files
     print(f"\n> Assembling news transcripts:")
     news_datasets = ['transcripts_2014-17.json', 'transcripts_2020.json']
     transcripts = np.empty(shape=(0), dtype=object)
 
     for dataset_json in news_datasets:
-        json_path = os.path.join(PATH, 'news_transcripts_2014-20/', dataset_json)
+        json_path = os.path.join(PATH, 'source_transcripts_news', dataset_json)
 
         with open(json_path, 'r') as f:
             obj = json.load(f)
@@ -113,11 +109,6 @@ def collate_news_transcripts(train_split=0.9, composite=False):
     del transcripts
 
     # save train/test data to csv
-    if composite:
-        dataset_path = os.path.join(PATH, 'composite')
-    else:
-        dataset_path = os.path.join(PATH, f'news-transcripts')
-
     pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
 
     train = pd.DataFrame(train, columns=['text'])
@@ -132,19 +123,19 @@ def collate_news_transcripts(train_split=0.9, composite=False):
     test.to_csv(csv_path_test, index=False)
     del test
 
+    return True
+
+
+def collate_subtitles(train_split=0.9, composite=False, dataset_path=PATH):
     # remove pre-existing data files from previous iterations
     remove_temp_files(dataset_path, extensions=['npy', 'txt'])
 
-    return dataset_path
-
-
-def collate_subtitles(train_split=0.9, composite=False):
     # input transcripts from json files
     print(f"\n> Assembling subtitles data:")
 
-    news_subs_path = os.path.join(PATH, 'subtitles_news_202212')
+    news_subs_path = os.path.join(PATH, 'source_subtitles_news')
     news_subs_datasets = [os.path.join(news_subs_path, file) for file in os.listdir(news_subs_path) if file.endswith('.json')]
-    other_subs_path = os.path.join(PATH, 'subtitles_other_202212')
+    other_subs_path = os.path.join(PATH, 'source_subtitles_other')
     other_subs_datasets = [os.path.join(other_subs_path, file) for file in os.listdir(other_subs_path) if file.endswith('.json')]
     subs_datasets = news_subs_datasets + other_subs_datasets
     transcripts = np.empty(shape=(0), dtype=object)
@@ -178,11 +169,6 @@ def collate_subtitles(train_split=0.9, composite=False):
     del transcripts
 
     # save train/test data to csv
-    if composite:
-        dataset_path = os.path.join(PATH, 'composite')
-    else:
-        dataset_path = os.path.join(PATH, f'subtitles')
-
     pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
 
     train = pd.DataFrame(train, columns=['text'])
@@ -197,13 +183,13 @@ def collate_subtitles(train_split=0.9, composite=False):
     test.to_csv(csv_path_test, index=False)
     del test
 
+    return True
+
+
+def download_reviews(dataset_path=PATH):
     # remove pre-existing data files from previous iterations
     remove_temp_files(dataset_path, extensions=['npy', 'txt'])
 
-    return dataset_path
-
-
-def download_reviews():
     # download yelp reviews data from tensorflow_datasets
     train, test = tfds.load('yelp_polarity_reviews', split=['train', 'test'], shuffle_files=True)
 
@@ -221,7 +207,6 @@ def download_reviews():
     test = test.drop(columns=['label'])
 
     # save train/test data to csv
-    dataset_path = os.path.join(PATH, 'reviews')
     pathlib.Path(dataset_path).mkdir(parents=True, exist_ok=True)
 
     csv_path_train = os.path.join(dataset_path, 'train_reviews.csv')
@@ -230,13 +215,13 @@ def download_reviews():
     csv_path_test = os.path.join(dataset_path, 'test_reviews.csv')
     test.to_csv(csv_path_test, index=False)
 
-    # remove pre-existing data files from previous iterations
-    remove_temp_files(dataset_path, extensions=['npy', 'txt'])
-
-    return dataset_path
+    return True
 
 
-def create_composite_dataset(distinct, train_split, dataset_names, balance):
+def create_composite_dataset(dataset_names, train_split=0.9, balance=None, dataset_dir=PATH):
+    # remove pre-existing data files
+    remove_temp_files(dataset_dir, extensions=['npy', 'csv', 'txt'])
+
     # create a collection of all individual datasets needed to construct composite datasets
     all_datasets = []
 
@@ -244,23 +229,52 @@ def create_composite_dataset(distinct, train_split, dataset_names, balance):
         # collect dataset from file
         if name == 'news-articles':
             # collect articles part of composite dataset (from JSONL files)
-            dataset_dir = collate_news_articles(2019, 2022, summaries=False, train_split=1.0, composite=True)
+            collate_news_articles(COMPOSITE_ARTICLES_START, 2022, train_split=1.0, composite=True, dataset_path=dataset_dir)
             dataset_path = os.path.join(dataset_dir, 'train_news.csv')
 
         elif name == 'news-transcripts':
             # collect transcripts part of dataset
-            dataset_dir = collate_news_transcripts(train_split=0.9998, composite=True)
+            collate_news_transcripts(train_split=train_split, composite=True, dataset_path=dataset_dir)
             dataset_path = os.path.join(dataset_dir, 'train_transcripts.csv')
 
-            # only construct testing data from transcripts dataset
+            # construct testing data from transcripts dataset
             test_dataset_path_input = os.path.join(dataset_dir, 'test_transcripts.csv')
             transcripts_test = pd.read_csv(test_dataset_path_input)
+
+            # save test data file
+            test_dataset_path_output = os.path.join(dataset_dir, 'test_composite.csv')
+
+            if os.path.isfile(test_dataset_path_output):
+                other_test = pd.read_csv(test_dataset_path_output)
+                transcripts_test = pd.concat([transcripts_test, other_test], axis=1)
+                transcripts_test = transcripts_test.sample(frac=1, random_state=42).reset_index(drop=True)  # shuffle
+
             transcripts_test.dropna(inplace=True)
             transcripts_test.reset_index(drop=True, inplace=True)
-
-            test_dataset_path_output = os.path.join(dataset_dir, 'test_composite.csv')
             transcripts_test.to_csv(test_dataset_path_output, index=False)
             del transcripts_test
+
+        elif name == 'subtitles':
+            # collect subtitles part of dataset
+            collate_subtitles(train_split=train_split, composite=True, dataset_path=dataset_dir)
+            dataset_path = os.path.join(dataset_dir, 'train_subtitles.csv')
+
+            # split out test dataset
+            test_dataset_path_input = os.path.join(dataset_dir, 'test_subtitles.csv')
+            subtitles_test = pd.read_csv(test_dataset_path_input)
+
+            # save test data file
+            test_dataset_path_output = os.path.join(dataset_dir, 'test_composite.csv')
+
+            if os.path.isfile(test_dataset_path_output):
+                other_test = pd.read_csv(test_dataset_path_output)
+                subtitles_test = pd.concat([subtitles_test, other_test], axis=1)
+                subtitles_test = subtitles_test.sample(frac=1, random_state=42).reset_index(drop=True)  # shuffle
+
+            subtitles_test.dropna(inplace=True)
+            subtitles_test.reset_index(drop=True, inplace=True)
+            subtitles_test.to_csv(test_dataset_path_output, index=False)
+            del subtitles_test
 
         else:
             raise ValueError("Composite dataset cannot be built with unknown source datasets.")
@@ -270,56 +284,43 @@ def create_composite_dataset(distinct, train_split, dataset_names, balance):
         dataset.dropna(inplace=True)
         dataset.reset_index(drop=True, inplace=True)
 
-        # if wanting to create distinct composite dataset (i.e. separate pre-train/tune) then label each dataset to be split up later
-        if distinct:
-            dataset['source'] = name
-
         # add to dataset collection
         all_datasets.append(dataset.copy())
         del dataset
 
     # combine two news datasets together in proportion denoted by `balance`
-    # if balance == '1:1':  # even balance
-    #     min_length = min(map(len, all_datasets))
-    #     all_datasets = [d[:min_length] for d in all_datasets]
-    #     print("\n> Combining datasets in 1:1 proportion")
-    # elif balance == '2:1' and len(all_datasets) == 2:
-    #     proportion = int(len(all_datasets[0]) / 2)
+    if balance != 'o':
+        balance = list(map(int, balance.split(':')))
+        if len(balance) == len(all_datasets):
+            print("\n> Proportioning datasets:")
+            print(f"\t* Approx. ratio of dataset sizes: {balance}")
 
-    #     if len(all_datasets[1]) > proportion and len(all_datasets) == 2:
-    #         all_datasets = [all_datasets[0], all_datasets[1][:proportion]]
-    #         print("\n> Combining datasets in 2:1 proportion")
-    #     else:
-    #         print("\n> Combining datasets of original length")
-    # elif balance == '1:2' and len(all_datasets) == 2:
-    #     proportion = int(len(all_datasets[1]) / 2)
+            # clip all datasets to the size of the smallest (so proportions are relative to that)
+            min_dataset_len = min(map(len, all_datasets))
+            all_datasets = [d[:min_dataset_len] for d in all_datasets]
 
-    #     if len(all_datasets[0]) > proportion:
-    #         all_datasets = [all_datasets[0][:proportion], all_datasets[1]]
-    #         print("\n> Combining datasets of in 1:2 proportion")
-    #     else:
-    #         print("\n> Combining datasets of original length")
-    # elif balance == '2:3' and len(all_datasets) == 2:
-    #     proportion = int(len(all_datasets[1]) / 3) * 2
+            balace_total = sum(balance)
+            data_total = sum(map(len, all_datasets))
+            proportions = [round(data_total / balace_total) * b for b in balance]
+            proportioned_datasets = []
 
-    #     if len(all_datasets[0]) > proportion:
-    #         all_datasets = [all_datasets[0][:proportion], all_datasets[1]]
-    #         print("\n> Combining datasets of in 2:3 proportion")
-    #     else:
-    #         print("\n> Combining datasets of original length")
-    # else:  # `balance = 'o'` => original dataset sizes
-    #     print("\n> Combining datasets of original length")
+            for d, p in zip(all_datasets, proportions):
+                p = min(p, len(d))
+                d = d[:p]
+                proportioned_datasets.append(d)
 
+            all_datasets = proportioned_datasets.copy()
+            del proportioned_datasets
+            print(f"\t* Proportioned dataset sizes: {list(map(len, all_datasets))}")
+
+    # combine separate data of varying types into single composite dataset
     composite_data = pd.concat(all_datasets, ignore_index=True)
     del all_datasets
-
-    # shuffle samples (not necessary if splitting into distinct composite datasets)
-    if not distinct:
-        composite_data = composite_data.sample(frac=1, random_state=42).reset_index(drop=True)
+    composite_data = composite_data.sample(frac=1, random_state=42).reset_index(drop=True)  # shuffle samples
 
     # save composite dataset to csv file
     csv_path_train = os.path.join(dataset_dir, 'train_composite.csv')
     composite_data.to_csv(csv_path_train, index=False)
     del composite_data
 
-    return dataset_dir
+    return True

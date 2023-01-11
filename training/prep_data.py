@@ -18,7 +18,7 @@ PATH = './training/datasets/'
 WORDS_PER_FILE = 35000000
 
 
-def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10', composite_datasets_list=None, composite_data_distinctness=False, dataset_balance='o'):
+def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10', composite_datasets_list=None, dataset_balance='o'):
     """
     Full pipeline for compiling and formatting training data from BBC News articles or Yelp reviews
     """
@@ -28,40 +28,49 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
         print(f"\n> Preparing data from source: BBC News articles")
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
-        dataset_path = collate_news_articles(int(start_year), int(end_year), summaries, train_split=split)
+
+        if summaries:
+            dataset_path = os.path.join(PATH, f'news-summaries')
+            article_size = 'summary'
+        else:
+            dataset_path = os.path.join(PATH, f'news-{start_year}-{end_year}')
+            article_size = 'body'
+
+        collate_news_articles(int(start_year), int(end_year), summary_or_body=article_size, train_split=split, dataset_path=dataset_path)
 
     elif data_type == 'reviews':
         # save training/testing datasets from tensorflow to local csv files
         print("\n> Preparing data from source: Yelp reviews")
-        dataset_path = download_reviews()
+        dataset_path = os.path.join(PATH, 'reviews')
+        download_reviews(dataset_path=dataset_path)
 
     elif data_type == 'news-transcripts':
         # extract and process transcripts from JSON files
         print(f"\n> Preparing data from source: BBC News transcripts")
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
-
         data_type = 'transcripts'
-        dataset_path = collate_news_transcripts(train_split=split)
+
+        dataset_path = os.path.join(PATH, f'news-transcripts')
+        collate_news_transcripts(train_split=split, dataset_path=dataset_path)
 
     elif data_type == 'subtitles':
         # collect data from subtitles JSON files
         print(f"\n> Preparing data from source: subtitles (all genres)")
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
-        dataset_path = collate_subtitles(train_split=split)
+
+        dataset_path = os.path.join(PATH, f'subtitles')
+        collate_subtitles(train_split=split, dataset_path=dataset_path)
 
     elif data_type == 'composite':
-        # error checking
-        if composite_data_distinctness and composite_datasets_list is  None:
-            raise ValueError("If building distinct composite datasets, you must specify exactly TWO included datasets (one for pre-training, one for fine-tuning).")
-
-        # create composte dataset of BBC News articles and transcripts
-        print(f"\n> Preparing data from source: BBC News articles & transcripts")
+        # create composte dataset from multiple sources
+        print(f"\n> Preparing data from sources: {composite_datasets_list}")
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
 
-        dataset_path = create_composite_dataset(distinct=composite_data_distinctness, train_split=split, dataset_names=composite_datasets_list, balance=dataset_balance)
+        dataset_path = os.path.join(PATH, 'composite')
+        create_composite_dataset(dataset_names=composite_datasets_list, train_split=split, balance=dataset_balance, dataset_dir=dataset_path)
 
     else:
         raise ValueError("Unrecognised data source!")
@@ -71,20 +80,11 @@ def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=Fal
         print(f"\n> Generating dataset: {key.upper()}")
 
         # constuct df of text and labels (punctuation tag per word)
-        rpunct_dataset = create_rpunct_dataset(dataset_path, data_type, key, composite_and_distinct=composite_data_distinctness, dataset_names=composite_datasets_list)
-
-        # split data into chunks for model
-        primary_rpunct_dataset = rpunct_dataset['A']
-        secondary_rpunct_dataset = rpunct_dataset['B']
-        del rpunct_dataset
+        rpunct_dataset = create_rpunct_dataset(dataset_path, data_type, split=key)
 
         output_file = f"{data_type}_{key}"
-        total_words += create_training_samples(primary_rpunct_dataset, output_file, file_out_path=dataset_path, train_or_test=key)
-
-        # if composite dataset of distinct parts, split/format the fine-tuning half of the data
-        if secondary_rpunct_dataset != []:
-            output_file = f"{data_type}_{key}_finetuning"
-            total_words += create_training_samples(secondary_rpunct_dataset, output_file, file_out_path=dataset_path, train_or_test=key)
+        total_words += create_training_samples(rpunct_dataset, output_file, file_out_path=dataset_path, train_or_test=key)
+        del rpunct_dataset
 
     # remove temporary dataset files
     remove_temp_files(dataset_path, extensions=['csv'], traintest='train')
@@ -122,7 +122,7 @@ def check_data_exists(data_type='news', train_or_test='train', start_date='2014'
     return check
 
 
-def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, dataset_names=None, make_mc_database=False):
+def create_rpunct_dataset(path, data_type, split, make_mc_database=False):
     # load in train/test data
     data_split_path = os.path.join(path, f'{split}_{data_type}.csv')
     data_split = pd.read_csv(data_split_path)
@@ -135,39 +135,19 @@ def create_rpunct_dataset(path, data_type, split, composite_and_distinct=False, 
     # insert a space after intra-word hyphens
     data_split['text'] = data_split['text'].str.replace("-", "- ")
 
-    # if we are dealing with a composite dataset of distinct parts, split the prep of each to be processed separately
-    if composite_and_distinct and split == 'train':
-        # segment distinct articles and transcripts datasets (from composite dataset)
-        datasets = []
-        for name in dataset_names:
-            datasets.append(
-                data_split[data_split['source'] == name]['text']
-            )
-    else:
-        datasets = [
-            data_split['text']
-        ]
-
-    # create records for each dataset part of the composite (if integrated, 'A' == all data; if distinct, 'A' == pre-training and 'B' == fine-tuning)
-    all_records = {
-        'A': [],
-        'B': []
-    }
-
     if make_mc_database:
         mixed_case = {}
     else:
         mixed_case = None
 
     # constuct df of text and labels (punctuation tag per word) for primary (and possibly secondary) dataset
-    for d in range(len(datasets)):
-        with tqdm(datasets[d]) as T:
-            T.set_description(f"        * Labelling {split}ing instances ({d})")
-            for segment in T:
-                record, mixed_case = create_record(segment, mixed_case)  # create a list enumerating each word in a single segment/article and its label: [...{id, word, label}...]
-                record_index = list(all_records.keys())[d]
-                all_records[record_index].extend(record)
-                del record
+    all_records = []
+    with tqdm(data_split['text']) as T:
+        T.set_description(f"        * Labelling {split}ing instances")
+        for segment in T:
+            record, mixed_case = create_record(segment, mixed_case)  # create a list enumerating each word in a single segment/article and its label: [...{id, word, label}...]
+            all_records.extend(record)
+            del record
 
     if split == 'train' and make_mc_database:
         with open('rpunct/mixed-casing.json', 'w') as f:

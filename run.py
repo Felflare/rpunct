@@ -29,8 +29,8 @@ data_parser.add_argument(
     metavar='TRAIN:TEST',
     action='store',
     type=str,
-    default='90:10',
-    help="Specify the train-test split to be implemented (TRAIN perc. of data for training, TEST for testing) - default is 90:10."
+    default='95:5',
+    help="Specify the train-test split to be implemented (TRAIN perc. of data for training, TEST for testing) - default is 95:5."
 )
 
 news_data_subparser.add_argument(
@@ -68,16 +68,8 @@ composite_data_subparser.add_argument(
     action='store',
     nargs='+',
     type=str,
-    default=['news-articles', 'news-transcripts'],
-    help="Specify the 2+ data sources to include in the composite dataset - default is news articles and transcripts."
-)
-
-composite_data_subparser.add_argument(
-    '-d',
-    '--distinct',
-    action='store_true',
-    default=False,
-    help="Toggle between an integrated composite dataset and distinct datasets for pre-training / fine-tuning - default is integrated."
+    default=['news-articles', 'news-transcripts', 'subtitles'],
+    help="Specify the 2+ data sources to include in the composite dataset - default is news articles/transcripts and all genre subtitles."
 )
 
 composite_data_subparser.add_argument(
@@ -118,14 +110,6 @@ train_parser.add_argument(
     action='store_true',
     default=False,
     help="Toggle validation, where the model is evaluated every 5000 steps during training - default is off."
-)
-
-train_parser.add_argument(
-    '-ft',
-    '--finetune',
-    action='store_true',
-    default=False,
-    help="Toggle on fine-tuning training round after initial pre-training stage - default is off."
 )
 
 train_parser.add_argument(
@@ -279,7 +263,6 @@ if __name__ == "__main__":
                     data_type=args.data,
                     tt_split=args.split,
                     composite_datasets_list=args.include,
-                    composite_data_distinctness=args.distinct,
                     dataset_balance=args.databalance
                 )
 
@@ -299,18 +282,12 @@ if __name__ == "__main__":
             else:  # transcripts, composite, etc.
                 data_type, summaries, data_start, data_end = args.data, False, '', ''
 
-            if args.stage == 'train' and args.data == 'composite-news-dist':
-                args.finetune = True
-            else:
-                args.finetune = False
-
             dataset_exists = check_data_exists(
                 data_type=data_type,
                 train_or_test=args.stage,
                 start_date=data_start,
                 end_date=data_end,
                 summaries=summaries,
-                finetuning=args.finetune
             )
 
             if not dataset_exists:
@@ -320,7 +297,6 @@ if __name__ == "__main__":
                     end_year=data_end,
                     summaries=summaries,
                     composite_datasets_list=['news-articles', 'news-transcripts'],
-                    composite_data_distinctness=args.finetune
                 )
 
             if args.stage == 'train':
@@ -332,7 +308,6 @@ if __name__ == "__main__":
                     dataset_stats=args.stats,
                     training_plot=args.plot,
                     epochs=args.epochs,
-                    conduct_fine_tuning=args.finetune
                 )
             else:  # args.stage == 'test'
                 # run model testing pipeline

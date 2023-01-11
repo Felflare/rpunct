@@ -48,23 +48,6 @@ def e2e_train(data_source='reviews', use_cuda=True, validation=False, dataset_st
     if validation and training_plot:
         plot_training(tr_details)
 
-    # if using composite dataset (of distinct parts) prepare fine-tuning data and run fine-tuning
-    if conduct_fine_tuning:
-        # generate correctly formatted training data
-        print(f"\n> Preparing fine-tuning data from source: {data_source}")
-        prepare_data(source=data_source, train_or_test='train_finetuning')
-
-        # create a simpletransformer model and use data to train it
-        print("\n> Fine-tuning model:")
-        model, steps, tr_details = train_model(
-            model,
-            data_dir=data_source,
-            train_data_txt='rpunct_train_finetuning_set.txt',
-            use_cuda=use_cuda,
-            epochs=epochs
-        )
-        print(f"\n\t* Steps: {steps}; Train details: {tr_details}")
-
     print("\n> Model training complete", end='\n\n')
 
     return model
