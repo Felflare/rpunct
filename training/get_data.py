@@ -289,19 +289,20 @@ def create_composite_dataset(dataset_names, train_split=0.9, balance=None, datas
         del dataset
 
     # combine two news datasets together in proportion denoted by `balance`
-    if balance != 'o':
+    print("\n> Proportioning datasets:")
+    if balance == 'o':
+        print(f"\t* Using original sizes: {list(map(len, all_datasets))}")
+    else:
         balance = list(map(int, balance.split(':')))
         if len(balance) == len(all_datasets):
-            print("\n> Proportioning datasets:")
-            print(f"\t* Approx. ratio of dataset sizes: {balance}")
+            print(f"\t* Ratio of dataset sizes: {balance}")
 
             # clip all datasets to the size of the smallest (so proportions are relative to that)
-            min_dataset_len = min(map(len, all_datasets))
-            all_datasets = [d[:min_dataset_len] for d in all_datasets]
+            clipped_dataset_len = min(map(len, all_datasets))
+            all_datasets = [d[:clipped_dataset_len] for d in all_datasets]
 
-            balace_total = sum(balance)
-            data_total = sum(map(len, all_datasets))
-            proportions = [round(data_total / balace_total) * b for b in balance]
+            balance_max = max(balance)
+            proportions = [round((b / balance_max) * clipped_dataset_len) for b in balance]
             proportioned_datasets = []
 
             for d, p in zip(all_datasets, proportions):
