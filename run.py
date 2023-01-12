@@ -17,7 +17,7 @@ punct_parser = subparsers.add_parser('punct', help='Run rpunct on a given input 
 # Data subparsers
 data_source_subparsers = data_parser.add_subparsers(help="Specify type of data to be prepared.", dest="data")
 reviews_data_subparser = data_source_subparsers.add_parser('reviews', help='Yelp reviews dataset.')
-news_data_subparser = data_source_subparsers.add_parser('news', help='BBC News articles dataset.')
+news_data_subparser = data_source_subparsers.add_parser('news-articles', help='BBC News articles dataset.')
 transcripts_data_subparser = data_source_subparsers.add_parser('news-transcripts', help='BBC News transcripts dataset.')
 subtitles_data_subparser = data_source_subparsers.add_parser('subtitles', help='BBC subtitles (all genres) dataset.')
 composite_data_subparser = data_source_subparsers.add_parser('composite', help='Composite dataset including data from multiple sources (e.g. articles and transcripts).')
@@ -240,7 +240,7 @@ if __name__ == "__main__":
         # Run the pipeline for the ML processing stage selected (data prep, train, test)
         if args.stage == 'data':
             # error checking
-            if args.data == 'news':
+            if args.data == 'news-articles':
                 if args.end < args.start:
                     raise ValueError("End year of news data range must not be earlier than start year.")
 
@@ -249,7 +249,7 @@ if __name__ == "__main__":
                     raise ValueError(f"If specifying a composite dataset, at least two data sources must be specified (to merge together). You only specified {len(args.datasets)}.")
 
             # run data preparation pipeline
-            if args.data == 'news':
+            if args.data == 'news-articles':
                 e2e_data(
                     data_type=args.data,
                     start_year=args.start,
@@ -266,7 +266,7 @@ if __name__ == "__main__":
                     dataset_balance=args.databalance
                 )
 
-            else:  # currently (args.data == 'reviews') and (args.data == 'news-transcripts')
+            else:
                 e2e_data(
                     data_type=args.data,
                     tt_split=args.split
@@ -278,7 +278,7 @@ if __name__ == "__main__":
                 data_type, data_start, data_end = args.data.split('-')
                 summaries = False
             elif args.data[:8] == 'news-sum':  # summaries
-                data_type, summaries, data_start, data_end = 'news', True, '', ''
+                data_type, summaries, data_start, data_end = 'news-articles', True, '', ''
             else:  # transcripts, composite, etc.
                 data_type, summaries, data_start, data_end = args.data, False, '', ''
 

@@ -223,7 +223,8 @@ def create_composite_dataset(dataset_names, train_split=0.9, balance=None, datas
     remove_temp_files(dataset_dir, extensions=['npy', 'csv', 'txt'])
 
     # create a collection of all individual datasets needed to construct composite datasets
-    all_datasets = []
+    train_datasets = []
+    test_datasets = []
 
     for name in dataset_names:
         # collect dataset from file
@@ -236,45 +237,27 @@ def create_composite_dataset(dataset_names, train_split=0.9, balance=None, datas
             # collect transcripts part of dataset
             collate_news_transcripts(train_split=train_split, composite=True, dataset_path=dataset_dir)
             dataset_path = os.path.join(dataset_dir, 'train_transcripts.csv')
+            test_data_path = os.path.join(dataset_dir, 'test_transcripts.csv')
 
-            # construct testing data from transcripts dataset
-            test_dataset_path_input = os.path.join(dataset_dir, 'test_transcripts.csv')
-            transcripts_test = pd.read_csv(test_dataset_path_input)
-
-            # save test data file
-            test_dataset_path_output = os.path.join(dataset_dir, 'test_composite.csv')
-
-            if os.path.isfile(test_dataset_path_output):
-                other_test = pd.read_csv(test_dataset_path_output)
-                transcripts_test = pd.concat([transcripts_test, other_test], axis=1)
-                transcripts_test = transcripts_test.sample(frac=1, random_state=42).reset_index(drop=True)  # shuffle
-
-            transcripts_test.dropna(inplace=True)
-            transcripts_test.reset_index(drop=True, inplace=True)
-            transcripts_test.to_csv(test_dataset_path_output, index=False)
-            del transcripts_test
+            # save test dataset
+            test_data = pd.read_csv(test_data_path)
+            test_data.dropna(inplace=True)
+            test_data.reset_index(drop=True, inplace=True)
+            test_datasets.append(test_data.copy())
+            del test_data
 
         elif name == 'subtitles':
             # collect subtitles part of dataset
             collate_subtitles(train_split=train_split, composite=True, dataset_path=dataset_dir)
             dataset_path = os.path.join(dataset_dir, 'train_subtitles.csv')
+            test_data_path = os.path.join(dataset_dir, 'test_subtitles.csv')
 
-            # split out test dataset
-            test_dataset_path_input = os.path.join(dataset_dir, 'test_subtitles.csv')
-            subtitles_test = pd.read_csv(test_dataset_path_input)
-
-            # save test data file
-            test_dataset_path_output = os.path.join(dataset_dir, 'test_composite.csv')
-
-            if os.path.isfile(test_dataset_path_output):
-                other_test = pd.read_csv(test_dataset_path_output)
-                subtitles_test = pd.concat([subtitles_test, other_test], axis=1)
-                subtitles_test = subtitles_test.sample(frac=1, random_state=42).reset_index(drop=True)  # shuffle
-
-            subtitles_test.dropna(inplace=True)
-            subtitles_test.reset_index(drop=True, inplace=True)
-            subtitles_test.to_csv(test_dataset_path_output, index=False)
-            del subtitles_test
+            # save test dataset
+            test_data = pd.read_csv(test_data_path)
+            test_data.dropna(inplace=True)
+            test_data.reset_index(drop=True, inplace=True)
+            test_datasets.append(test_data.copy())
+            del test_data
 
         else:
             raise ValueError("Composite dataset cannot be built with unknown source datasets.")
@@ -285,43 +268,53 @@ def create_composite_dataset(dataset_names, train_split=0.9, balance=None, datas
         dataset.reset_index(drop=True, inplace=True)
 
         # add to dataset collection
-        all_datasets.append(dataset.copy())
+        train_datasets.append(dataset.copy())
         del dataset
 
     # combine two news datasets together in proportion denoted by `balance`
     print("\n> Proportioning datasets:")
     if balance == 'o':
-        print(f"\t* Using original sizes: {list(map(len, all_datasets))}")
+        print(f"\t* Using original sizes: {list(map(len, train_datasets))}")
     else:
         balance = list(map(int, balance.split(':')))
-        if len(balance) == len(all_datasets):
+        if len(balance) == len(train_datasets):
             print(f"\t* Ratio of dataset sizes: {balance}")
 
             # clip all datasets to the size of the smallest (so proportions are relative to that)
-            clipped_dataset_len = min(map(len, all_datasets))
-            all_datasets = [d[:clipped_dataset_len] for d in all_datasets]
+            clipped_dataset_len = min(map(len, train_datasets))
+            train_datasets = [d[:clipped_dataset_len] for d in train_datasets]
 
             balance_max = max(balance)
             proportions = [round((b / balance_max) * clipped_dataset_len) for b in balance]
             proportioned_datasets = []
 
-            for d, p in zip(all_datasets, proportions):
+            for d, p in zip(train_datasets, proportions):
                 p = min(p, len(d))
                 d = d[:p]
                 proportioned_datasets.append(d)
 
-            all_datasets = proportioned_datasets.copy()
+            train_datasets = proportioned_datasets.copy()
             del proportioned_datasets
-            print(f"\t* Proportioned dataset sizes: {list(map(len, all_datasets))}")
+            print(f"\t* Proportioned dataset sizes: {list(map(len, train_datasets))}")
 
-    # combine separate data of varying types into single composite dataset
-    composite_data = pd.concat(all_datasets, ignore_index=True)
-    del all_datasets
+    # combine separate training data of varying types into single composite dataset
+    composite_data = pd.concat(train_datasets, ignore_index=True)
+    del train_datasets
     composite_data = composite_data.sample(frac=1, random_state=42).reset_index(drop=True)  # shuffle samples
 
-    # save composite dataset to csv file
+    # save composite training dataset to csv file
     csv_path_train = os.path.join(dataset_dir, 'train_composite.csv')
     composite_data.to_csv(csv_path_train, index=False)
     del composite_data
+
+    # similarly combine test data
+    composite_test = pd.concat(test_datasets, ignore_index=True)
+    del test_datasets
+    composite_test = composite_test.sample(frac=1, random_state=42).reset_index(drop=True)  # shuffle samples
+
+    # save composite training dataset to csv file
+    csv_path_test = os.path.join(dataset_dir, 'test_composite.csv')
+    composite_test.to_csv(csv_path_test, index=False)
+    del composite_test
 
     return True

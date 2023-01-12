@@ -18,14 +18,15 @@ PATH = './training/datasets/'
 WORDS_PER_FILE = 35000000
 
 
-def e2e_data(data_type='news', start_year='2014', end_year='2022', summaries=False, tt_split='90:10', composite_datasets_list=None, dataset_balance='o'):
+def e2e_data(data_type='news-articles', start_year='2014', end_year='2022', summaries=False, tt_split='90:10', composite_datasets_list=None, dataset_balance='o'):
     """
     Full pipeline for compiling and formatting training data from BBC News articles or Yelp reviews
     """
     # generate/collect raw data
-    if data_type == 'news':
+    if data_type == 'news-articles':
         # collect data from each JSONL file enumerating all BBC News articles for each year 2014-2022
         print(f"\n> Preparing data from source: BBC News articles")
+        data_type = 'news'
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
 
