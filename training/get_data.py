@@ -12,13 +12,14 @@ PATH = './training/datasets/'
 COMPOSITE_ARTICLES_START = 2022
 
 
-def remove_temp_files(dataset_path, extensions, traintest=''):
-    if traintest != '':
-        traintest = '*' + traintest
+def remove_temp_files(directory, extensions, traintest=''):
+    if traintest == '':
+        pattern = '*.'
+    else:
+        pattern = '*' + traintest + '*.'
 
-    # find directory and remove all temporary .npy and .csv files
     for extension in extensions:
-        for p in pathlib.Path(dataset_path).glob(f"{traintest}*." + extension):
+        for p in pathlib.Path(directory).glob(pattern + extension):
             p.unlink()
 
 
