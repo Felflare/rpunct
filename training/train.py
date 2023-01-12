@@ -101,7 +101,7 @@ def prepare_data(source='reviews', train_or_test='train', validation=False, prin
 
     # remove temporary dataset files
     dataset_path = os.path.join(PATH, source)
-    remove_temp_files(dataset_path, traintest='train')
+    remove_temp_files(dataset_path, extensions=['npy', 'csv'], traintest='train')
 
     # dataset statistics
     if print_stats:

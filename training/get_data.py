@@ -12,7 +12,7 @@ PATH = './training/datasets/'
 COMPOSITE_ARTICLES_START = 2022
 
 
-def remove_temp_files(dataset_path, extensions=['npy', 'csv'], traintest=''):
+def remove_temp_files(dataset_path, extensions, traintest=''):
     if traintest != '':
         traintest = '*' + traintest
 
@@ -31,6 +31,7 @@ def collate_news_articles(start_date, end_date, summary_or_body='body', train_sp
 
     # get news article data
     print(f"\n> Assembling news article {summary_or_body[:-1]}ies:")
+    print(f"\t* {train_split:.1f} : {1 - train_split:.1f} data split")
     news_datasets = [f'news_{date}.jsonl' for date in range(start_date, end_date + 1)]
     articles = []
 
@@ -102,7 +103,7 @@ def collate_news_transcripts(train_split=0.9, composite=False, dataset_path=PATH
     train = transcripts[:split]
     test = transcripts[split:]
 
-    print(f"\t* {train_split:.1f} : {1-train_split:.1f} data split")
+    print(f"\t* {train_split:.1f} : {1 - train_split:.1f} data split")
     print(f"\t* Speaker segments in total    : {len(transcripts)}")
     print(f"\t* Speaker segments in train set: {len(train)}")
     print(f"\t* Speaker segments in test set : {len(test)}")
@@ -132,6 +133,7 @@ def collate_subtitles(train_split=0.9, composite=False, dataset_path=PATH):
 
     # input transcripts from json files
     print(f"\n> Assembling subtitles data:")
+    print(f"\t* {train_split:.1f} : {1 - train_split:.1f} data split")
 
     news_subs_path = os.path.join(PATH, 'source_subtitles_news')
     news_subs_datasets = [os.path.join(news_subs_path, file) for file in os.listdir(news_subs_path) if file.endswith('.json')]
@@ -140,9 +142,10 @@ def collate_subtitles(train_split=0.9, composite=False, dataset_path=PATH):
     subs_datasets = news_subs_datasets + other_subs_datasets
     transcripts = np.empty(shape=(0), dtype=object)
 
-    print(f"\t* News subtitle transcripts : {len(news_subs_datasets)}")
-    print(f"\t* Other subtitle transcripts: {len(other_subs_datasets)}")
-    print(f"\t* All subtitle transcripts  : {len(subs_datasets)}")
+    print(f"\t* News subtitle transcripts : {len(news_subs_datasets)} / {len(subs_datasets)}")
+    print(f"\t* Other subtitle transcripts: {len(other_subs_datasets)} / {len(subs_datasets)}")
+    del news_subs_datasets
+    del other_subs_datasets
 
     with tqdm(subs_datasets) as D:
         D.set_description("        * Reading subtitle data")
@@ -163,9 +166,8 @@ def collate_subtitles(train_split=0.9, composite=False, dataset_path=PATH):
     train = transcripts[:split]
     test = transcripts[split:]
 
-    print(f"\t* {train_split:.1f} : {1-train_split:.1f} data split")
-    print(f"\t* Transcripts in train set: {len(train)} / {len(transcripts)}")
-    print(f"\t* Transcripts in test set : {len(test)} / {len(transcripts)}")
+    print(f"\t* Subtitle transcripts in train set: {len(train)}")
+    print(f"\t* Subtitle transcripts in test set : {len(test)}")
     del transcripts
 
     # save train/test data to csv
