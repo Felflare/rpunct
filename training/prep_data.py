@@ -75,7 +75,7 @@ def e2e_data(data_type='news-articles', start_year='2014', end_year='2022', summ
 
     elif data_type == 'composite':
         # create composte dataset from multiple sources
-        print(f"\n> Preparing data from sources: {composite_datasets_list}")
+        print(f"\n> Assembling composite dataset containing: {composite_datasets_list}")
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
 
@@ -274,7 +274,7 @@ def create_training_samples(words_and_labels, data_type, file_out_path=PATH, tra
     _round = 0
 
     print("\t* Formatting data files:")
-    print(f"\t\t- No. words in {train_or_test} set  : {num_words}")
+    print(f"\t\t- No. words in {train_or_test} set : {num_words}")
 
     # segment primary dataset into `num_splits` chunks
     while _round < num_splits:
@@ -309,7 +309,7 @@ def create_training_samples(words_and_labels, data_type, file_out_path=PATH, tra
         with open(out_path, 'wb') as f:
             np.save(f, observations, allow_pickle=True)
 
-        print(f"\t\t- Output data to file               : {out_path}")
+        print(f"\t\t- Output data to file    : {out_path}")
         del records
         del observations
 

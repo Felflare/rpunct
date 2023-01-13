@@ -71,7 +71,7 @@ def collate_news_articles(start_date, end_date, summary_or_body='body', train_sp
     train = articles[:split]
     test = articles[split:]
 
-    print(f"\t* Data split            : {train_split:.1f} : {1 - train_split:.1f}")
+    print(f"\t* Data split            : {train_split:.2f}:{1 - train_split:.2f}")
     print(f"\t* Articles in total     : {len(articles)}")
     print(f"\t* Articles in train set : {len(train)}")
     print(f"\t* Articles in test set  : {len(test)}")
@@ -131,7 +131,7 @@ def collate_news_transcripts(train_split=0.9, output_directory=PATH):
     train = transcripts[:split]
     test = transcripts[split:]
 
-    print(f"\t* Data split                    : {train_split:.1f} : {1 - train_split:.1f}")
+    print(f"\t* Data split                    : {train_split:.2f}:{1 - train_split:.2f}")
     print(f"\t* Speaker segments in total     : {len(transcripts)}")
     print(f"\t* Speaker segments in train set : {len(train)}")
     print(f"\t* Speaker segments in test set  : {len(test)}")
@@ -175,11 +175,9 @@ def collate_subtitles(train_split=0.9, output_directory=PATH):
     subs_datasets = news_subs_datasets + other_subs_datasets
     transcripts = np.empty(shape=(0), dtype=object)
 
-    print(f"\t* Data split                        : {train_split:.1f} : {1 - train_split:.1f}")
-    print(f"\t* News subtitle transcripts         : {len(news_subs_datasets)} / {len(subs_datasets)}")
-    print(f"\t* Other subtitle transcripts        : {len(other_subs_datasets)} / {len(subs_datasets)}")
-    print(f"\t* Subtitle transcripts in train set : {len(train)}")
-    print(f"\t* Subtitle transcripts in test set  : {len(test)}")
+    print(f"\t* Data split                        : {train_split:.2f}:{1 - train_split:.2f}")
+    print(f"\t* News subtitle transcripts         : {len(news_subs_datasets)}")
+    print(f"\t* Other subtitle transcripts        : {len(other_subs_datasets)}")
     del news_subs_datasets
     del other_subs_datasets
 
@@ -272,8 +270,6 @@ def create_composite_dataset(dataset_names, train_split=0.9, balance='o', output
         - balance (str): specifier to clip dataset sizes to be included in composite dataset in a given ratio to each other (in form `x:y`)
         - output_directory (Path): location of output directory to store output CSV files (relative to top-level `rpunct` directory).
     """
-    print(f"\n> Assembling composite dataset containing:", dataset_names)
-
     # remove pre-existing data files
     remove_temp_files(output_directory, extensions=['npy', 'csv', 'txt'])
 

@@ -296,6 +296,7 @@ if __name__ == "__main__":
                     start_year=data_start,
                     end_year=data_end,
                     summaries=summaries,
+                    tt_split=args.split,
                     composite_datasets_list=['news-articles', 'news-transcripts'],
                 )
 
