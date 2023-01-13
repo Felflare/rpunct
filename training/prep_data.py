@@ -16,9 +16,15 @@ from training.get_data import *
 
 PATH = './training/datasets/'
 WORDS_PER_FILE = 35000000
+PUNCT_LABELS = ['O', '.', ',', ':', ';', "'", '-', '?', '!', '%']
+CAPI_LABELS = ['O', 'C', 'U', 'M']
+VALID_LABELS = [f"{x}{y}" for y in CAPI_LABELS for x in PUNCT_LABELS]
 
 
-def e2e_data(data_type='news-articles', start_year='2014', end_year='2022', summaries=False, tt_split='90:10', composite_datasets_list=None, dataset_balance='o'):
+def e2e_data(data_type='news-transcripts', tt_split='90:10',
+            start_year='2014', end_year='2022', summaries=False,
+            composite_datasets_list=None, dataset_balance='o',
+            validation=False, dataset_stats=False):
     """
     Full pipeline for gathering/loading data and formatting it into training and testing datasets to be used by RPunct.
 
@@ -35,7 +41,8 @@ def e2e_data(data_type='news-articles', start_year='2014', end_year='2022', summ
     if data_type == 'news-articles':
         # collect data from each JSONL file enumerating all BBC News articles for each year 2014-2022
         print(f"\n> Preparing data from source: BBC News articles")
-        data_type = 'news'
+        data_source = 'news'
+        data_type = 'news-' + start_year + '-' + end_year
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
 
@@ -53,13 +60,14 @@ def e2e_data(data_type='news-articles', start_year='2014', end_year='2022', summ
         print("\n> Preparing data from source: Yelp reviews")
         dataset_path = os.path.join(PATH, 'reviews')
         download_reviews(output_directory=dataset_path)
+        data_source = data_type
 
     elif data_type == 'news-transcripts':
         # extract and process transcripts from JSON files
         print(f"\n> Preparing data from source: BBC News transcripts")
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
-        data_type = 'transcripts'
+        data_source = 'transcripts'
 
         dataset_path = os.path.join(PATH, f'news-transcripts')
         collate_news_transcripts(train_split=split, output_directory=dataset_path)
@@ -69,6 +77,7 @@ def e2e_data(data_type='news-articles', start_year='2014', end_year='2022', summ
         print(f"\n> Preparing data from source: subtitles (all genres)")
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
+        data_source = data_type
 
         dataset_path = os.path.join(PATH, f'subtitles')
         collate_subtitles(train_split=split, output_directory=dataset_path)
@@ -78,6 +87,7 @@ def e2e_data(data_type='news-articles', start_year='2014', end_year='2022', summ
         print(f"\n> Assembling composite dataset containing: {composite_datasets_list}")
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
+        data_source = data_type
 
         dataset_path = os.path.join(PATH, 'composite')
         create_composite_dataset(dataset_names=composite_datasets_list, train_split=split, balance=dataset_balance, output_directory=dataset_path)
@@ -89,43 +99,31 @@ def e2e_data(data_type='news-articles', start_year='2014', end_year='2022', summ
         print(f"\n> Generating dataset: {split.upper()}")
 
         # constuct df of text and labels (punctuation tag per word)
-        rpunct_dataset = create_rpunct_dataset(dataset_path, data_type, train_or_test=split)
+        rpunct_dataset = create_rpunct_dataset(dataset_path, data_source, train_or_test=split)
 
-        create_training_samples(rpunct_dataset, data_type, file_out_path=dataset_path, train_or_test=split)
+        create_training_samples(rpunct_dataset, data_source, file_out_path=dataset_path, train_or_test=split)
         del rpunct_dataset
 
+        # generate correctly formatted training data
+        print(f"\n> Preparing data from source: {data_type}")
+        prepare_data(source=data_type, train_or_test=split, validation=validation, print_stats=dataset_stats)
+
     # remove temporary dataset files
-    remove_temp_files(dataset_path, extensions=['csv'], traintest='train')
+    remove_temp_files(dataset_path, extensions=['csv', 'npy'])
 
-    print("\n> Data generation complete")
+    print("\n> Data generation and preparation complete")
 
 
-def check_data_exists(data_type='news', train_or_test='train', start_date='2014', end_date='2022', summaries=False):
+def check_data_exists(data_source='news-transcripts', train_or_test='train'):
     """
     Error checking function to ensure training/testing dataset has been constructed before model training/testing commences.
 
     Args:
-        - data_type (str): a name tag specifying source of the data that should be in the training dataset.
+        - data_type (str): the name of the directory where training/testing data files are expected to be located.
         - train_or_test (str): specifier of whether to check for training or testing dataset.
-        - start_year (str): start year of date range of BBC News articles training data (requires `data_type = news-articles`).
-        - end_year (str): end year of date range of BBC News articles training data (requires `data_type = news-articles`).
-        - summaries (bool): specifier for training dataset of article summaries (requires `data_type = news-articles`).
     """
-    # check whether the training data has been created or not yet
-    if data_type == 'news-articles':
-        if summaries:
-            data_dir = os.path.join(PATH, f'news-summaries')
-        else:
-            data_dir = os.path.join(PATH, f'news-{start_date}-{end_date}')
-    else:
-        data_dir = os.path.join(PATH, data_type)
-
-        if data_type == 'news-transcripts':
-            data_type = 'transcripts'
-
-    data_file_pattern = f'{data_type}_{train_or_test}_*.npy'
-    dataset_paths = list(pathlib.Path(data_dir).glob(data_file_pattern))
-    data_files_exist = len(dataset_paths) > 0 or os.path.isfile(data_dir + "/rpunct_train_set.txt")
+    data_dir = os.path.join(PATH, data_source)
+    data_files_exist = os.path.isfile(data_dir + "/rpunct_train_set.txt")
     print(f"\n> Required data files found in directory '{data_dir}'? : {data_files_exist}")
 
     return data_files_exist
@@ -347,6 +345,166 @@ def create_tokenized_obs(input_list, num_toks=500, offset=250):
 
     # return list of tuples enumerating the start and end index of each chunk of words
     return indices
+
+
+def prepare_data(source='reviews', train_or_test='train', validation=False, print_stats=False):
+    """
+    Prepares data from Original text into Connnl formatted datasets ready for training
+    In addition constraints label space to only labels we care about
+    """
+    # create dataset paths
+    output_txt = f'rpunct_{train_or_test}_set.txt'
+    dataset_path = os.path.join(PATH, source, output_txt)
+
+    val_output_txt='rpunct_val_set.txt'
+    val_set_path = os.path.join(PATH, source, val_output_txt)
+
+    # check if txt files have been built already
+    if os.path.exists(dataset_path):
+        if validation and os.path.exists(val_set_path):
+            print(f"\t* {train_or_test.replace('_', ' ').capitalize()}ing dataset exists: {dataset_path}")
+            print(f"\t* Validation dataset exists: {val_set_path}")
+            return
+        elif not validation:
+            print(f"\t* {train_or_test.replace('_', ' ').capitalize()}ing dataset exists: {dataset_path}")
+            return
+
+    # load formatted data generated through `prep_data.py`
+    token_data = load_datasets(source, train_or_test)
+
+    # remove any invalid labels
+    clean_up_labels(token_data)
+
+    # split train/test datasets, convert each to a text file, and print dataset stats if desired
+    if validation:
+        # training & validation sets
+        split = math.ceil(0.9 * len(token_data))
+        train_set = token_data[:split].copy()
+        val_set = token_data[split:].copy()
+
+        # format validaton set as Connl NER txt file
+        print(f"\t* Validation dataset shape: ({len(val_set)}, {len(val_set[0])}, {len(val_set[0][0])})")
+        create_text_file(val_set, val_set_path)
+    else:
+        train_set = token_data.copy()
+
+    print(f"\t* {train_or_test.replace('_', ' ').capitalize()}ing dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
+
+    # format training set as Connl NER txt file
+    create_text_file(train_set, dataset_path)
+
+    # remove temporary dataset files
+    dataset_path = os.path.join(PATH, source)
+    remove_temp_files(dataset_path, extensions=['npy', 'csv'], traintest='train')
+
+    # dataset statistics
+    if print_stats:
+        # print label distribution in training set
+        train_stats = get_label_stats(train_set)
+        print(f"\t* {train_or_test.capitalize()}ing data statistics:")
+        print(train_stats)
+
+        # print label distribution in validation set
+        if validation:
+            val_stats = get_label_stats(val_set)
+            print(f"\t* Validation data statistics:")
+            print(val_stats)
+
+
+def load_datasets(data_dir='reviews', train_or_test='train'):
+    """
+    First, locate the data files generated from running `prep_data.py`.
+    Then, given this list of data paths return a single data object containing all data slices.
+    """
+    # convert from dir name to file name
+    if data_dir[:6] == 'news-2':
+        data_type = 'news'
+    elif data_dir[:9] == 'news-tran':
+        data_type = 'transcripts'
+    elif data_dir[:4] == 'comp':
+        data_type = 'composite'
+    else:
+        data_type = data_dir
+
+    # find training data files
+    path_to_data = pathlib.Path(os.path.join(PATH, data_dir))
+    data_file_pattern = f'{data_type}_{train_or_test}_*.npy'
+    datasets = list(path_to_data.glob(data_file_pattern))
+
+    if len(datasets) == 0:
+        raise FileNotFoundError("No dataset files found. You may have forgotten to run the `prep_data.py` preparation process on the dataset you want to use.")
+
+    # collate these into a single data object
+    token_data = np.empty(shape=(0, 500, 3), dtype=object)
+
+    with tqdm(datasets) as D:
+        for dataset in D:
+            D.set_description("        * Reading in data")
+            with open(dataset, 'rb') as f:
+                data_slice = np.load(f, allow_pickle=True)
+
+            token_data = np.append(token_data, data_slice, axis=0)
+            del data_slice
+
+    return token_data
+
+
+def clean_up_labels(dataset, valid_labels=VALID_LABELS):
+    """
+    Given a list of valid labels cleans up the dataset
+    by limiting to only the labels available.
+
+    In addition prepares observations for training.
+    """
+    print("\t* Cleaning labels")
+    for ix, i in enumerate(dataset):
+        for tok in i:
+            tok[0] = ix
+            if tok[2] not in valid_labels:
+                case = tok[2][-1]
+                tok[2] = f"O{case}"
+                if len(tok[2]) < 2:
+                    tok[2] = "OO"
+
+
+def create_text_file(dataset, name):
+    """
+    Create Connl NER format file
+    """
+    with open(name, 'w') as fp:
+        with tqdm(dataset) as D:
+            for obs in D:
+                D.set_description("        * Creating txt file")
+                for tok in obs:
+                    line = tok[1] + " " + tok[2] + '\n'
+                    fp.write(line)
+                fp.write('\n')
+
+
+def get_label_stats(dataset):
+    """
+    Generates frequency of different labels in the dataset.
+    """
+    calcs = {}
+    total = 0
+    for i in dataset:
+        for tok in i:
+            total += 1
+            if tok[2] not in calcs.keys():
+                calcs[tok[2]] = 1
+            else:
+                calcs[tok[2]] += 1
+
+    output = pd.DataFrame(columns=['Punct Tag', 'Count', 'Proportion'])
+    for k in calcs.keys():
+        row = pd.DataFrame.from_dict({
+            'Punct Tag': [k],
+            'Count': [calcs[k]],
+            'Proportion': [(calcs[k] / total) * 100]
+        })
+        output = pd.concat([output, row])
+
+    return output.reset_index(drop=True)
 
 
 if __name__ == "__main__":

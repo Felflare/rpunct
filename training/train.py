@@ -5,35 +5,24 @@ __author__ = "Daulet N."
 __email__ = "daulet.nurmanbetov@gmail.com"
 
 import os
-import json
-import math
-import pathlib
-import numpy as np
-import pandas as pd
-from tqdm import tqdm
 from simpletransformers.ner import NERModel
 import matplotlib.pyplot as plt
 import seaborn as sns
-from training.get_data import remove_temp_files
+from training.prep_data import VALID_LABELS
 
 sns.set_theme(style="darkgrid")
 sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 
-PUNCT_LABELS = ['O', '.', ',', ':', ';', "'", '-', '?', '!', '%']
-CAPI_LABELS = ['O', 'C', 'U', 'M']
-VALID_LABELS = [f"{x}{y}" for y in CAPI_LABELS for x in PUNCT_LABELS]
-
 PATH = './training/datasets/'
 
 
-def e2e_train(data_source='reviews', use_cuda=True, validation=False, dataset_stats=False, training_plot=False, epochs=3, conduct_fine_tuning=False):
+def e2e_train(data_source='reviews', use_cuda=True, validation=False, training_plot=False, epochs=3):
     """
-    Training pipeline to format training dataset, build model, and train it.
-    """
-    # generate correctly formatted training data
-    print(f"\n> Preparing data from source: {data_source}")
-    prepare_data(source=data_source, validation=validation, print_stats=dataset_stats)
+    Full pipeline for building and training a transformer-based RPunct model.
 
+    Args:
+        -
+    """
     # create a simpletransformer model and use data to train it
     print("\n> Building & training model")
     model, steps, tr_details = train_model(
@@ -51,166 +40,6 @@ def e2e_train(data_source='reviews', use_cuda=True, validation=False, dataset_st
     print("\n> Model training complete", end='\n\n')
 
     return model
-
-
-def prepare_data(source='reviews', train_or_test='train', validation=False, print_stats=False):
-    """
-    Prepares data from Original text into Connnl formatted datasets ready for training
-    In addition constraints label space to only labels we care about
-    """
-    # create dataset paths
-    output_txt = f'rpunct_{train_or_test}_set.txt'
-    dataset_path = os.path.join(PATH, source, output_txt)
-
-    val_output_txt='rpunct_val_set.txt'
-    val_set_path = os.path.join(PATH, source, val_output_txt)
-
-    # check if txt files have been built already
-    if os.path.exists(dataset_path):
-        if validation and os.path.exists(val_set_path):
-            print(f"\t* {train_or_test.replace('_', ' ').capitalize()}ing dataset exists: {dataset_path}")
-            print(f"\t* Validation dataset exists: {val_set_path}")
-            return
-        elif not validation:
-            print(f"\t* {train_or_test.replace('_', ' ').capitalize()}ing dataset exists: {dataset_path}")
-            return
-
-    # load formatted data generated through `prep_data.py`
-    token_data = load_datasets(source, train_or_test)
-
-    # remove any invalid labels
-    clean_up_labels(token_data)
-
-    # split train/test datasets, convert each to a text file, and print dataset stats if desired
-    if validation:
-        # training & validation sets
-        split = math.ceil(0.9 * len(token_data))
-        train_set = token_data[:split].copy()
-        val_set = token_data[split:].copy()
-
-        # format validaton set as Connl NER txt file
-        print(f"\t* Validation dataset shape: ({len(val_set)}, {len(val_set[0])}, {len(val_set[0][0])})")
-        create_text_file(val_set, val_set_path)
-    else:
-        train_set = token_data.copy()
-
-    print(f"\t* {train_or_test.replace('_', ' ').capitalize()}ing dataset shape: ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
-
-    # format training set as Connl NER txt file
-    create_text_file(train_set, dataset_path)
-
-    # remove temporary dataset files
-    dataset_path = os.path.join(PATH, source)
-    remove_temp_files(dataset_path, extensions=['npy', 'csv'], traintest='train')
-
-    # dataset statistics
-    if print_stats:
-        # print label distribution in training set
-        train_stats = get_label_stats(train_set)
-        print(f"\t* {train_or_test.capitalize()}ing data statistics:")
-        print(train_stats)
-
-        # print label distribution in validation set
-        if validation:
-            val_stats = get_label_stats(val_set)
-            print(f"\t* Validation data statistics:")
-            print(val_stats)
-
-
-def load_datasets(data_dir='reviews', train_or_test='train'):
-    """
-    First, locate the data files generated from running `prep_data.py`.
-    Then, given this list of data paths return a single data object containing all data slices.
-    """
-    # convert from dir name to file name
-    if data_dir[:6] == 'news-2':
-        data_type = 'news'
-    elif data_dir[:9] == 'news-tran':
-        data_type = 'transcripts'
-    elif data_dir[:4] == 'comp':
-        data_type = 'composite'
-    else:
-        data_type = data_dir
-
-    # find training data files
-    path_to_data = pathlib.Path(os.path.join(PATH, data_dir))
-    data_file_pattern = f'{data_type}_{train_or_test}_*.npy'
-    datasets = list(path_to_data.glob(data_file_pattern))
-
-    if len(datasets) == 0:
-        raise FileNotFoundError("No dataset files found. You may have forgotten to run the `prep_data.py` preparation process on the dataset you want to use.")
-
-    # collate these into a single data object
-    token_data = np.empty(shape=(0, 500, 3), dtype=object)
-
-    with tqdm(datasets) as D:
-        for dataset in D:
-            D.set_description("        * Reading in data")
-            with open(dataset, 'rb') as f:
-                data_slice = np.load(f, allow_pickle=True)
-
-            token_data = np.append(token_data, data_slice, axis=0)
-            del data_slice
-
-    return token_data
-
-
-def clean_up_labels(dataset, valid_labels=VALID_LABELS):
-    """
-    Given a list of valid labels cleans up the dataset
-    by limiting to only the labels available.
-
-    In addition prepares observations for training.
-    """
-    print("\t* Cleaning labels")
-    for ix, i in enumerate(dataset):
-        for tok in i:
-            tok[0] = ix
-            if tok[2] not in valid_labels:
-                case = tok[2][-1]
-                tok[2] = f"O{case}"
-                if len(tok[2]) < 2:
-                    tok[2] = "OO"
-
-
-def create_text_file(dataset, name):
-    """
-    Create Connl NER format file
-    """
-    with open(name, 'w') as fp:
-        with tqdm(dataset) as D:
-            for obs in D:
-                D.set_description("        * Creating txt file")
-                for tok in obs:
-                    line = tok[1] + " " + tok[2] + '\n'
-                    fp.write(line)
-                fp.write('\n')
-
-
-def get_label_stats(dataset):
-    """
-    Generates frequency of different labels in the dataset.
-    """
-    calcs = {}
-    total = 0
-    for i in dataset:
-        for tok in i:
-            total += 1
-            if tok[2] not in calcs.keys():
-                calcs[tok[2]] = 1
-            else:
-                calcs[tok[2]] += 1
-
-    output = pd.DataFrame(columns=['Punct Tag', 'Count', 'Proportion'])
-    for k in calcs.keys():
-        row = pd.DataFrame.from_dict({
-            'Punct Tag': [k],
-            'Count': [calcs[k]],
-            'Proportion': [(calcs[k] / total) * 100]
-        })
-        output = pd.concat([output, row])
-
-    return output.reset_index(drop=True)
 
 
 def train_model(model=None, data_dir='reviews', train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_set.txt', use_cuda=True, validation=False, epochs=3):

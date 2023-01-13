@@ -5,12 +5,11 @@ __author__ = "Tom Potter"
 __email__ = "tom.potter@bbc.co.uk"
 
 import os
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from simpletransformers.ner import NERModel
-from training.train import prepare_data, VALID_LABELS
+from training.prep_data import VALID_LABELS
 
 sns.set_theme(style="darkgrid")
 sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
@@ -19,12 +18,11 @@ PATH = './training/datasets/'
 RESULTS_PATH = './tests/'
 
 
-def e2e_test(models, data_source='reviews', use_cuda=True, print_stats=False, output_file='model_performance.png'):
+def e2e_test(models, data_source='reviews', use_cuda=True, output_file='model_performance.png'):
     """
     Testing model performance after full training process has been completed.
     """
     # format testing data into txt
-    prepare_data(source=data_source, print_stats=print_stats, train_or_test='test', validation=False)
     all_metrics = []
     count = 1
 

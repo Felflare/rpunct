@@ -33,6 +33,14 @@ data_parser.add_argument(
     help="Specify the train-test split to be implemented (TRAIN perc. of data for training, TEST for testing) - default is 95:5."
 )
 
+data_parser.add_argument(
+    '-p',
+    '--stats',
+    action='store_true',
+    default=False,
+    help="Print label distribution statistics about the test dataset - default hides stats."
+)
+
 news_data_subparser.add_argument(
     '-s',
     '--start',
@@ -90,7 +98,7 @@ train_parser.add_argument(
     metavar='DATA',
     type=str,
     choices=['reviews', 'news-summaries', 'composite', 'news-transcripts', 'subtitles'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
-    default='news-2014-2022',
+    default='news-transcripts',
     help="Specify the (path to the) dataset to be used to test the model: BBC News (`news-startyr-endyr`) or Yelp reviews (`reviews`) - default is BBC News 2014-2022."
 )
 
@@ -128,14 +136,6 @@ train_parser.add_argument(
     help="Output a plot of the convergence of the training/validation loss function - default is off."
 )
 
-train_parser.add_argument(
-    '-s',
-    '--stats',
-    action='store_true',
-    default=False,
-    help="Print label distribution statistics about the test dataset - default hides stats."
-)
-
 # Testing arguments
 test_parser.add_argument(
     'models',
@@ -152,7 +152,7 @@ test_parser.add_argument(
     metavar='DATA',
     type=str,
     choices=['reviews', 'news-summaries', 'news-sum', 'composite', 'news-transcripts', 'news-trans', 'subtitles'].extend([f'news-{start}-{end}' for start in range(2014, 2023) for end in range(2014, 2023)]),
-    default='news-2014-2022',
+    default='news-transcripts',
     help="Specify the (path to the) dataset to be used to test the model: BBC News (`news-startyr-endyr`) or Yelp reviews (`reviews`) - default is BBC News 2014-2022."
 )
 
@@ -171,14 +171,6 @@ test_parser.add_argument(
     action='store_true',
     default=False,
     help="Toggle between training on a GPU using CUDA or on the CPU - default is CPU."
-)
-
-test_parser.add_argument(
-    '-s',
-    '--stats',
-    action='store_true',
-    default=False,
-    help="Print label distribution statistics about the test dataset - default hides stats."
 )
 
 # Punctuate arguments
@@ -252,10 +244,11 @@ if __name__ == "__main__":
             if args.data == 'news-articles':
                 e2e_data(
                     data_type=args.data,
+                    tt_split=args.split,
                     start_year=args.start,
                     end_year=args.end,
                     summaries=args.sum,
-                    tt_split=args.split
+                    dataset_stats=args.stats
                 )
 
             elif args.data == 'composite':
@@ -263,17 +256,20 @@ if __name__ == "__main__":
                     data_type=args.data,
                     tt_split=args.split,
                     composite_datasets_list=args.include,
-                    dataset_balance=args.databalance
+                    dataset_balance=args.databalance,
+                    dataset_stats=args.stats
                 )
 
             else:
                 e2e_data(
                     data_type=args.data,
-                    tt_split=args.split
+                    tt_split=args.split,
+                    dataset_stats=args.stats
                 )
 
         elif args.stage in ['train', 'test']:
             # run data preparation pipeline if dataset does not exist
+            data_source = args.data
             if args.data[:7] == 'news-20':  # articles between two dates
                 data_type, data_start, data_end = args.data.split('-')
                 summaries = False
@@ -283,11 +279,8 @@ if __name__ == "__main__":
                 data_type, summaries, data_start, data_end = args.data, False, '', ''
 
             dataset_exists = check_data_exists(
-                data_type=data_type,
-                train_or_test=args.stage,
-                start_date=data_start,
-                end_date=data_end,
-                summaries=summaries,
+                data_source=data_source,
+                train_or_test=args.stage
             )
 
             if not dataset_exists:
@@ -296,8 +289,7 @@ if __name__ == "__main__":
                     start_year=data_start,
                     end_year=data_end,
                     summaries=summaries,
-                    tt_split=args.split,
-                    composite_datasets_list=['news-articles', 'news-transcripts'],
+                    composite_datasets_list=['news-articles', 'news-transcripts']
                 )
 
             if args.stage == 'train':
@@ -306,7 +298,6 @@ if __name__ == "__main__":
                     data_source=args.data,
                     use_cuda=args.cuda,
                     validation=args.val,
-                    dataset_stats=args.stats,
                     training_plot=args.plot,
                     epochs=args.epochs,
                 )
@@ -316,6 +307,5 @@ if __name__ == "__main__":
                     args.models,
                     data_source=args.data,
                     use_cuda=args.cuda,
-                    print_stats=args.stats,
                     output_file=args.output
                 )
