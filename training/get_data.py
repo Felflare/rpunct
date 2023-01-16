@@ -9,7 +9,7 @@ from tqdm import tqdm
 import tensorflow_datasets as tfds
 
 PATH = './training/datasets/'
-COMPOSITE_ARTICLES_START = 2021
+COMPOSITE_ARTICLES_START = 2022
 
 
 def remove_temp_files(directory, extensions, traintest=''):
@@ -323,7 +323,7 @@ def create_composite_dataset(dataset_names, train_split=0.9, balance='o', output
         del dataset
 
     # combine two news datasets together in proportion denoted by `balance`
-    print("\n> Proportioning datasets:")
+    print("\n> Proportioning data:")
     if balance == 'o':
         print(f"\t* Using original sizes : {list(map(len, train_datasets))}")
     else:

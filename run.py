@@ -232,6 +232,9 @@ if __name__ == "__main__":
         # Run the pipeline for the ML processing stage selected (data prep, train, test)
         if args.stage == 'data':
             # error checking
+            if args.data is None:
+                raise ValueError("No data source specified.")
+
             if args.data == 'news-articles':
                 if args.end < args.start:
                     raise ValueError("End year of news data range must not be earlier than start year.")

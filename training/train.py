@@ -16,7 +16,7 @@ sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 PATH = './training/datasets/'
 
 
-def e2e_train(data_source='reviews', use_cuda=True, validation=False, training_plot=False, epochs=3):
+def e2e_train(data_source='news-transcripts', use_cuda=True, validation=False, training_plot=False, epochs=3):
     """
     Full pipeline for building and training a transformer-based RPunct model.
 
@@ -42,7 +42,7 @@ def e2e_train(data_source='reviews', use_cuda=True, validation=False, training_p
     return model
 
 
-def train_model(model=None, data_dir='reviews', train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_set.txt', use_cuda=True, validation=False, epochs=3):
+def train_model(model=None, data_dir='news-transcripts', train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_set.txt', use_cuda=True, validation=False, epochs=3):
     """
     Trains simpletransformers model.
     Args:
@@ -111,7 +111,7 @@ def plot_training(training, out_path='training/training_loss.png'):
 
 if __name__ == "__main__":
     # specify which training data to use and whether to use a GPU
-    data = 'news'
+    data = 'news-transcripts'
     cuda = False
 
     # run training pipeline using news data

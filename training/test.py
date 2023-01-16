@@ -18,7 +18,7 @@ PATH = './training/datasets/'
 RESULTS_PATH = './tests/'
 
 
-def e2e_test(models, data_source='reviews', use_cuda=True, output_file='model_performance.png'):
+def e2e_test(models, data_source='news-transcripts', use_cuda=True, output_file='model_performance.png'):
     """
     Testing model performance after full training process has been completed.
     """
@@ -86,7 +86,7 @@ def compare_models(results, model_locations, out_png='model_performance.png', da
 
 if __name__ == "__main__":
     # specify which models to test and what test dataset to use
-    data = 'news'
+    data = 'news-transcripts'
     models = ['outputs/best_model', 'felflare/bert-restore-punctuation']
 
     # run testing pipeline
