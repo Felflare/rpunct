@@ -9,7 +9,24 @@ from tqdm import tqdm
 import tensorflow_datasets as tfds
 
 PATH = './training/datasets/'
-COMPOSITE_ARTICLES_START = 2022
+COMPOSITE_ARTICLES_START = 2021
+
+
+def check_data_exists(data_source='news-transcripts', train_or_test='train'):
+    """
+    Error checking function to ensure training/testing dataset has been constructed before model training/testing commences.
+
+    Args:
+        - data_type (str): the name of the directory where training/testing data files are expected to be located.
+        - train_or_test (str): specifier of whether to check for training or testing dataset.
+    """
+    data_path = os.path.join(PATH, data_source, f"rpunct_{train_or_test}_set.txt")
+    data_files_exist = os.path.isfile(data_path)
+    print(f"\n> Checking dataset exists:")
+    print(f"\t* Required data file: {data_path}")
+    print(f"\t* Found: {data_files_exist}")
+
+    return data_files_exist
 
 
 def remove_temp_files(directory, extensions, traintest=''):
@@ -27,7 +44,8 @@ def remove_temp_files(directory, extensions, traintest=''):
         pattern = '*' + traintest + '*.'
 
     for extension in extensions:
-        for p in pathlib.Path(directory).glob(pattern + extension):
+        files = pathlib.Path(directory).glob(pattern + extension)
+        for p in files:
             p.unlink()
 
 
@@ -174,15 +192,10 @@ def collate_subtitles(train_split=0.9, output_directory=PATH):
     other_subs_datasets = [os.path.join(other_subs_path, file) for file in os.listdir(other_subs_path) if file.endswith('.json')]
     subs_datasets = news_subs_datasets + other_subs_datasets
     transcripts = np.empty(shape=(0), dtype=object)
-
-    print(f"\t* Data split                        : {train_split:.2f}:{1 - train_split:.2f}")
-    print(f"\t* News subtitle transcripts         : {len(news_subs_datasets)}")
-    print(f"\t* Other subtitle transcripts        : {len(other_subs_datasets)}")
-    del news_subs_datasets
-    del other_subs_datasets
+    print(f"\t* Data split {' ' * 22} : {train_split:.2f}:{1 - train_split:.2f}")
 
     with tqdm(subs_datasets) as D:
-        D.set_description("        * Extracting subtitles data         ")
+        D.set_description(f"{' ' * 7} * Extracting subtitles data {' ' * 8}")
         for json_path in D:
             with open(json_path, 'r') as f:
                 obj = json.load(f)
@@ -208,7 +221,7 @@ def collate_subtitles(train_split=0.9, output_directory=PATH):
     pathlib.Path(output_directory).mkdir(parents=True, exist_ok=True)
 
     train = pd.DataFrame(train, columns=['text'])
-    train['text'] = train['text'].str.replace('\n',' ')
+    train['text'] = train['text'].str.replace('\n', ' ')
     csv_path_train = os.path.join(output_directory, 'train_subtitles.csv')
     train.to_csv(csv_path_train, index=False)
     del train

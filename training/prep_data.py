@@ -37,6 +37,8 @@ def e2e_data(data_type='news-transcripts', tt_split='90:10',
         - composite_datasets_list (list): collection of name tags of multiple data sources to include when constructing a composite dataset (requires `data_type = composite`).
         - dataset_balance (str): specifier to clip dataset sizes to be included in composite dataset in a given ratio to each other (in form `X:Y:...:Z`) (requires `data_type = composite`).
     """
+    split = 0  # split variable must always be defined s.t. it can be used to indicate which train/test stages to run
+
     # generate/collect raw data
     if data_type == 'news-articles':
         # collect data from each JSONL file enumerating all BBC News articles for each year 2014-2022
@@ -95,37 +97,27 @@ def e2e_data(data_type='news-transcripts', tt_split='90:10',
     else:
         raise ValueError(f"Unrecognised data source: {data_type}")
 
-    for split in ['train', 'test']:
-        # constuct df of text and labels (punctuation tag per word)
-        rpunct_dataset = create_rpunct_dataset(dataset_path, data_source, train_or_test=split)
+    # don't create test dataset if using 100% of data for training
+    if 1 - split == 0:
+        stages = ['train']
+    else:
+        stages = ['train', 'test']
 
-        create_training_samples(rpunct_dataset, data_source, file_out_path=dataset_path, train_or_test=split)
+    # create dataset for each stage (train/test)
+    for stage in stages:
+        # constuct df of text and labels (punctuation tag per word)
+        rpunct_dataset = create_rpunct_dataset(dataset_path, data_source, train_or_test=stage)
+
+        create_training_samples(rpunct_dataset, data_source, file_out_path=dataset_path, train_or_test=stage)
         del rpunct_dataset
 
         # generate correctly formatted training data
-        prepare_data(source=data_type, train_or_test=split, validation=validation, print_stats=dataset_stats)
+        prepare_data(source=data_type, train_or_test=stage, validation=validation, print_stats=dataset_stats)
 
     # remove temporary dataset files
     remove_temp_files(dataset_path, extensions=['csv', 'npy'])
 
     print("\n> Data generation and preparation complete")
-
-
-def check_data_exists(data_source='news-transcripts', train_or_test='train'):
-    """
-    Error checking function to ensure training/testing dataset has been constructed before model training/testing commences.
-
-    Args:
-        - data_type (str): the name of the directory where training/testing data files are expected to be located.
-        - train_or_test (str): specifier of whether to check for training or testing dataset.
-    """
-    data_path = os.path.join(PATH, data_source, f"rpunct_{train_or_test}_set.txt")
-    data_files_exist = os.path.isfile(data_path)
-    print(f"\n> Checking dataset exists:")
-    print(f"\t* Required data file: {data_path}")
-    print(f"\t* Found: {data_files_exist}")
-
-    return data_files_exist
 
 
 def create_rpunct_dataset(directory, data_type, train_or_test='train', make_mc_database=False):
@@ -163,7 +155,7 @@ def create_rpunct_dataset(directory, data_type, train_or_test='train', make_mc_d
     # constuct list of text and labels (punctuation tag per word) for primary (and possibly secondary) dataset
     all_records = []
     with tqdm(data_split['text']) as T:
-        T.set_description(f"        * Labelling {train_or_test}ing instances")
+        T.set_description(f"{' ' * 7} * Labelling {train_or_test}ing instances ")
         for segment in T:
             # create a list enumerating each word in a single segment/article and its label: [...{id, word, label}...]
             record, mixed_case_instances = create_record(segment, mixed_casing=make_mc_database)
@@ -207,7 +199,7 @@ def create_record(text, mixed_casing=False):
         text_obs = pattern.sub('', text_obs)  # remove any non-alphanumeric characters
 
         # if word is the empty string, skip over this one
-        if not text_obs:
+        if text_obs == '':
             continue
         elif text_obs[-1] == "'":  # remove trailing punctuation (only leave mid-word apostrophes)
             text_obs = text_obs[:-1]
@@ -219,7 +211,7 @@ def create_record(text, mixed_casing=False):
             new_lab = "O"  # `O` => no punctuation
 
         stripped_obs = re.sub(r"[^0-9a-zA-Z]", "", obs)
-        if stripped_obs is '':
+        if stripped_obs == '':
             continue
 
         # if the word is lowercase/capitalised/uppercase/mixed-case, add a descriptor to the label
@@ -272,7 +264,7 @@ def create_training_samples(words_and_labels, data_type, file_out_path=PATH, tra
     random.seed(42)
     _round = 0
 
-    print("\n\t* Segmenting data files:")
+    print("\n\t* Segmenting data into chunks:")
     print(f"\t\t- No. words in {train_or_test} set : {num_words}")
 
     # segment primary dataset into `num_splits` chunks
@@ -288,7 +280,7 @@ def create_training_samples(words_and_labels, data_type, file_out_path=PATH, tra
         observations = np.empty(shape=(len(splits), 500, 3), dtype=object)
 
         with tqdm(range(len(splits))) as S:
-            S.set_description(f"                - Splitting data chunk {_round + 1} ")
+            S.set_description(f"{' ' * 15} - Splitting data chunk {_round + 1} ")
             for j in S:
                 a, b = splits[j][0], splits[j][1]
                 data_slice = records.iloc[a: b, ].values.tolist()  # collect the 500 word-label dicts between the specified indices
@@ -308,7 +300,7 @@ def create_training_samples(words_and_labels, data_type, file_out_path=PATH, tra
         with open(out_path, 'wb') as f:
             np.save(f, observations, allow_pickle=True)
 
-        print(f"\t\t- Output data to file    : {out_path}")
+        print(f"\t\t- Outputting data file {_round + 1}  : {out_path}")
         del records
         del observations
 
@@ -432,7 +424,7 @@ def load_datasets(data_dir='reviews', train_or_test='train'):
 
     with tqdm(datasets) as D:
         for dataset in D:
-            D.set_description(f"                - Combining segmented data files ")
+            D.set_description(f"{' ' * 15} - Combining segmented data files ")
             with open(dataset, 'rb') as f:
                 data_slice = np.load(f, allow_pickle=True)
 
@@ -466,7 +458,7 @@ def create_text_file(dataset, name):
     with open(name, 'w') as fp:
         with tqdm(dataset) as D:
             for obs in D:
-                D.set_description("                - Outputting dataset to TXT file ")
+                D.set_description(f"{' ' * 15} - Outputting dataset to TXT file ")
                 for tok in obs:
                     line = tok[1] + " " + tok[2] + '\n'
                     fp.write(line)

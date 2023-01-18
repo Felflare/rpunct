@@ -1,8 +1,9 @@
 import argparse
 import pandas as pd
 from training.test import e2e_test
+from training.get_data import check_data_exists
+from training.prep_data import e2e_data
 from training.train import e2e_train
-from training.prep_data import e2e_data, check_data_exists
 from rpunct.punctuate import run_rpunct
 
 
