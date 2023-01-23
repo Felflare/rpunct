@@ -17,18 +17,21 @@ TERMINALS = ['.', '!', '?']
 
 
 class RestorePuncts:
-    def __init__(self, wrds_per_pred=250, use_cuda=True, model_location='felflare/bert-restore-punctuation'):
-        self.mc_database = self.load_mixed_case_database()
+    """
+    An RPunct punctuation restoration model object.
+    Initiate an instance from a pre-trained transformer model and use to infer punctuated text from plaintext.
 
-        self.model_location = model_location
-        self.wrds_per_pred = wrds_per_pred
-        self.overlap_wrds = 30
-        self.valid_labels = VALID_LABELS
+    Args:
+        - model_source (Path): the path (from `rpunct/`) to the directory containing the pre-trained transformer model files to construct an RPunct model around.
+        - use_cuda (bool): run inference on GPU (True) or CPU (False).
+    """
+    def __init__(self, model_source, use_cuda=True):
+        self.mc_database = self.load_mixed_case_database()  # Lookup database to restore the capitalisation of mixed-case words (e.g. "iPlayer")
 
         self.model = NERModel(
             "bert",
-            self.model_location,
-            labels=self.valid_labels,
+            model_source,
+            labels=VALID_LABELS,
             use_cuda=use_cuda,
             args={
                 "silent": True,
@@ -36,57 +39,56 @@ class RestorePuncts:
             }
         )
 
-    def punctuate(self, text: str, lang:str=''):
+    def punctuate(self, text:str, lang:str=''):
         """
-        Performs punctuation restoration on arbitrarily large text.
-        Detects if input is not English, if non-English was detected terminates predictions.
-        Overrride by supplying `lang='en'`
+        Performs punctuation restoration on plaintext (in English only - overrride using `lang='en'`).
 
         Args:
-            - text (str): Text to punctuate, can be few words to as large as you want.
-            - lang (str): Explicit language of input text.
+            - text (str): text to punctuate, can be few words to as large as you want.
+            - lang (str): explicit language of input text.
+
+        Returns:
+            - punct_text (str): fully punctuated output text.
         """
-        # throw error if text isn't written in english
+        # Throw error if text isn't written in english
         if not lang and len(text) > 10:
             lang = detect(text)
 
         if lang != 'en':
-            raise Exception(F"""Non English text detected. Restore Punctuation works only for English.
-            If you are certain the input is English, pass argument lang='en' to this function.
-            Punctuate received: {text}""")
+            raise Exception(f"Non English text detected. Restore Punctuation works only for English.\
+            If you are certain the input is English, pass argument lang='en' to this function.\
+            Input language detected: {lang}.")
 
-        # split up large text into bert digestable chunks
-        splits = self.split_on_toks(text, self.wrds_per_pred, self.overlap_wrds)
-
-        # predict slices
-        full_preds_lst = [self.predict(i['text']) for i in splits]  # full_preds_lst contains tuple of labels and logits (raw predictions)
-        preds_lst = [i[0][0] for i in full_preds_lst]  # extract predictions, and discard logits
-
-        # format predictions as a linear sequence of text with per-word predictions tagged
-        combined_preds = self.combine_results(text, preds_lst)
-
-        # create full punctuated prediction with correct formatting based upon the predictions
-        punct_text = self.punctuate_texts(combined_preds)
+        # Restoration pipeline
+        segments = self.split_on_toks(text)  # Format input text such that it can be easily passed to the transformer model
+        preds_lst = [self.predict(i['text']) for i in segments]  # Generate word-level punctuation predictions
+        combined_preds = self.combine_results(preds_lst, text)  # Combine a list of text segments and their predictions into a single sequence
+        punct_text = self.punctuate_texts(combined_preds)  # Apply the punctuation predictions to the text
 
         return punct_text
 
-    def predict(self, input_slice):
+    def predict(self, input_slice:str):
         """
         Passes the unpunctuated text to the model for punctuation.
         """
-        predictions, raw_outputs = self.model.predict([input_slice])
+        predictions = self.model.predict([input_slice])[0][0]
 
-        return predictions, raw_outputs
+        return predictions
 
     @staticmethod
-    def split_on_toks(text, length, overlap):
+    def split_on_toks(text:str, length:int=250, overlap:int=30):
         """
-        Splits text into predefined slices of overlapping text with indexes (offsets)
-        that tie-back to original text.
-        This is done to bypass 512 token limit on transformer models by sequentially
-        feeding chunks of < 512 toks.
-        Example output:
-        [{...}, {"text": "...", 'start_idx': 31354, 'end_idx': 32648}, {...}]
+        Splits a string of text into predefined slices of overlapping text with indexes linked back to the original text.
+        This is done to bypass 512 token limit on transformer models by sequentially feeding segments of <512 tokens.
+
+        Args:
+            - text (str): input string of text to be split.
+            - length (int): number of words in the (non-overlapping portion of) the otuput text segment.
+            - overlap (int): number of words to overlap between text segements.
+
+        Returns:
+            - resp (lst): list of dicts specifying each text segment (containing the text and its start/end indices).
+            E.g. [{...}, {"text": "...", 'start_idx': 31354, 'end_idx': 32648}, {...}]
         """
         wrds = text.replace('\n', ' ').split(" ")
         resp = []
@@ -94,7 +96,7 @@ class RestorePuncts:
         i = 0
 
         while True:
-            # words in the chunk and the overlapping portion
+            # Words in the chunk and the overlapping portion
             wrds_len = wrds[(length * i):(length * (i + 1))]
             wrds_ovlp = wrds[(length * (i + 1)):((length * (i + 1)) + overlap)]
             wrds_split = wrds_len + wrds_ovlp
@@ -107,6 +109,7 @@ class RestorePuncts:
             nxt_chunk_start_idx = len(" ".join(wrds_len))
             lst_char_idx = len(" ".join(wrds_split))
 
+            # Text segment object
             resp_obj = {
                 "text": wrds_str,
                 "start_idx": lst_chunk_idx,
@@ -117,54 +120,50 @@ class RestorePuncts:
             lst_chunk_idx += nxt_chunk_start_idx + 1
             i += 1
 
-        logging.info(f"Sliced transcript into {len(resp)} slices.")
         return resp
 
     @staticmethod
-    def combine_results(full_text: str, text_slices):
+    def combine_results(text_slices:list, original_text:str):
         """
-        Given a full text and predictions of each slice combines predictions into a single text again.
-        Performs validataion wether text was combined correctly
+        Given a full text and predictions of each slice combines the segmented predictions into a single text again.
         """
-        split_full_text = full_text.replace('\n', ' ').split(" ")
-        split_full_text = [i for i in split_full_text if i]  # remove any empty strings
-        split_full_text_len = len(split_full_text)
+        original_text_lst = original_text.replace('\n', ' ').split(" ")
+        original_text_lst = [i for i in original_text_lst if i]  # remove any empty strings
+        original_text_len = len(original_text_lst)
         output_text = []
         index = 0
 
-        # remove final element of prediction list for formatting
+        # Remove final element of prediction list for formatting
         if len(text_slices[-1]) <= 3 and len(text_slices) > 1:
             text_slices = text_slices[:-1]
 
-        # cycle thrugh slices in the full prediction
+        # Cycle thrugh slices in the full prediction
         for _slice in text_slices:
             slice_wrds = len(_slice)
 
-            # cycle through words in each slice
+            # Cycle through words in each slice
             for ix, wrd in enumerate(_slice):
-                # print(index, "|", str(list(wrd.keys())[0]), "|", split_full_text[index])
-                if index == split_full_text_len:
+                if index == original_text_len:
                     break
 
-                # add each (non-overlapping) word and its associated prediction to output text
-                if split_full_text[index] == str(list(wrd.keys())[0]) and \
-                        ix <= slice_wrds - 3 and text_slices[-1] != _slice:
-                    index += 1
-                    pred_item_tuple = list(wrd.items())[0]
-                    output_text.append(pred_item_tuple)
-                elif split_full_text[index] == str(list(wrd.keys())[0]) and text_slices[-1] == _slice:
+                # Add each (non-overlapping) word and its associated prediction to output text
+                if (original_text_lst[index] == str(list(wrd.keys())[0])) and (ix <= slice_wrds - 3) and (text_slices[-1] != _slice):
                     index += 1
                     pred_item_tuple = list(wrd.items())[0]
                     output_text.append(pred_item_tuple)
 
-        # ensure output text content (without predictions) is the same as the full plain text
-        assert [i[0] for i in output_text] == split_full_text
+                elif (original_text_lst[index] == str(list(wrd.keys())[0])) and (text_slices[-1] == _slice):
+                    index += 1
+                    pred_item_tuple = list(wrd.items())[0]
+                    output_text.append(pred_item_tuple)
+
+        # Validate that the output text content (without predictions) is the same as the full plain text
+        assert [i[0] for i in output_text] == original_text_lst
         return output_text
 
-    def punctuate_texts(self, full_pred: list):
+    def punctuate_texts(self, full_pred:list):
         """
-        Given a list of Predictions from the model, applies the predictions to text,
-        thus punctuating it.
+        Given a list of Predictions from the model, applies the predictions to the plaintext, restoring full punctuation and capitalisation.
         """
         punct_resp = ""
 
@@ -219,7 +218,10 @@ class RestorePuncts:
 
     @staticmethod
     def load_mixed_case_database(file='rpunct/mixed-casing.json'):
-        # load database of mixed-case instances
+        """
+        Loads the mixed-case database from a file into a python variable so it can be accessed during restoration.
+        """
+        # Load database of mixed-case instances
         try:
             with open(file) as f:
                 database = json.load(f)
@@ -228,7 +230,10 @@ class RestorePuncts:
 
         return database
 
-    def fetch_mixed_casing(self, plaintext):
+    def fetch_mixed_casing(self, plaintext:str):
+        """
+        Retrieve the correct mixed-case capitalisation of a plaintext word.
+        """
         # In case of no database, return as uppercase acronym
         if self.mc_database is None:
             return plaintext.upper()
@@ -242,43 +247,49 @@ class RestorePuncts:
         return correct_capitalisation
 
 
-def run_rpunct(use_cuda=False, input_txt='tests/sample_text.txt', output_txt=None, model_location='felflare/bert-restore-punctuation'):
-    # generate instance of rpunct model
-    punct_model = RestorePuncts(use_cuda=use_cuda, model_location=model_location)
+def run_rpunct(model_location, input_txt, output_path=None, use_cuda:bool=False, ):
+    """
+    Pipeline that forms an RestorePuncts object to conduct punctuation restoration over an input file of plaintext using the specified RPunct model.
+    """
+    # Generate an RPunct model instance
+    punct_model = RestorePuncts(model_source=model_location, use_cuda=use_cuda)
 
-    # read in txt file file
+    # Read input text
     print(f"\nReading plaintext from file: {input_txt}")
-    try:
-        with open(input_txt, 'r') as fp:
-            unpunct_text = fp.read()
-    except FileNotFoundError:
-        input_txt = os.path.join('../', input_txt)
-        with open(input_txt, 'r') as fp:
-            unpunct_text = fp.read()
+    with open(input_txt, 'r') as fp:
+        unpunct_text = fp.read()
 
-    # predict text and print / write out
+    # Restore punctuation to plaintext using RPunct
     punctuated = punct_model.punctuate(unpunct_text)
 
-    if output_txt is None:
+    # Output restored text
+    if not output_path:
         # print output to command line
         print("\nPrinting punctuated text", end='\n\n')
         print(punctuated)
     else:
-        # check if output directory exists
-        output_path, output_file = os.path.split(output_txt)
-        output_path_exists = os.path.isdir(output_path)
+        # Check if output directory exists
+        output_dir, _ = os.path.split(output_path)
+        output_path_exists = os.path.isdir(output_dir)
 
         # print punctuated text to output file
-        if output_path_exists or output_path == '':
-            print(f"Writing punctuated text to file: {output_txt}")
-            with open(output_txt, 'w') as fp:
+        if output_path_exists:
+            print(f"Writing punctuated text to file: {output_path}")
+            with open(output_path, 'w') as fp:
                 fp.write(punctuated)
         else:
-            raise FileNotFoundError("Directory specified to ouptut text file to does not exist.")
+            raise FileNotFoundError(f"Directory specified to ouptut text file to does not exist: {output_dir}")
 
 
 if __name__ == "__main__":
+    model = 'outputs/comp-perc-1e/'
     cuda = False
-    input = 'tests/sample_text.txt'
+    input = 'tests/inferences/boris/test.txt'
     output = 'output.txt'
-    run_rpunct(use_cuda=cuda, input_txt=input, output_txt=output)
+
+    run_rpunct(
+        model_location=model,
+        input_txt=input,
+        output_txt=output,
+        use_cuda=cuda
+    )

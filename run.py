@@ -223,10 +223,10 @@ if __name__ == "__main__":
     if args.stage == 'punct':
         # generate instance of rpunct model and run text through it
         run_rpunct(
-            use_cuda=args.cuda,
+            model_location=args.model,
             input_txt=args.input,
             output_txt=args.output,
-            model_location=args.model
+            use_cuda=args.cuda
         )
 
     else:
