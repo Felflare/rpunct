@@ -300,7 +300,7 @@ def create_training_samples(words_and_labels, data_type, file_out_path=PATH, tra
         with open(out_path, 'wb') as f:
             np.save(f, observations, allow_pickle=True)
 
-        print(f"\t\t- Outputting data file {_round + 1}  : {out_path}")
+        print(f"\t\t- Outputting data file {_round + 1} : {out_path}")
         del records
         del observations
 

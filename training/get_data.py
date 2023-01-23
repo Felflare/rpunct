@@ -9,7 +9,7 @@ from tqdm import tqdm
 import tensorflow_datasets as tfds
 
 PATH = './training/datasets/'
-COMPOSITE_ARTICLES_START = 2021
+COMPOSITE_ARTICLES_START = 2020
 
 
 def check_data_exists(data_source='news-transcripts', train_or_test='train'):
