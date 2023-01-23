@@ -16,16 +16,26 @@ sns.set(rc={'figure.figsize':(10, 7), 'figure.dpi':100, 'savefig.dpi':100})
 PATH = './training/datasets/'
 
 
-def e2e_train(data_source='news-transcripts', use_cuda=True, validation=False, training_plot=False, epochs=3):
+def e2e_train(
+            model_source=None, data_source='news-transcripts',
+            epochs=3, use_cuda=True,
+            validation=False, training_plot=False):
     """
-    Full pipeline for building and training a transformer-based RPunct model.
+    Full pipeline for building and training a transformer-based RPunct model (using previously prepared RPunct dataset).
 
     Args:
-        -
+        - model_source (str): the name of the directory within `rpunct/outputs/` to load a pre-trained RPunct model from (or create a new model if None).
+        - data_source (str): the name of the directory within `rpunct/training/datasets/` containing the prepared training data.
+        - epochs (int): the number of training epochs to execute.
+        - use_cuda (bool): run training on GPU (True) or CPU (False).
+        - validation (bool): use a pre-prepared validation set during training (validates performance every 5000 steps).
+        - training_plot (bool): generate an output plot of the progression of the validation loss (requires `validation = True`)
+        every 5000 steps during training.
     """
-    # create a simpletransformer model and use data to train it
-    print("\n> Building & training model")
+    # Create a simpletransformer model and use data to train it
+    print("\n> Building & training model:")
     model, steps, tr_details = train_model(
+        model_dir=model_source,
         data_dir=data_source,
         use_cuda=use_cuda,
         validation=validation,
@@ -33,7 +43,7 @@ def e2e_train(data_source='news-transcripts', use_cuda=True, validation=False, t
     )
     print(f"\n\t* Steps: {steps}; Train details: {tr_details}")
 
-    # plot the progression/convergence over training/validation
+    # Plot the progression/convergence over training/validation
     if validation and training_plot:
         plot_training(tr_details)
 
@@ -42,18 +52,19 @@ def e2e_train(data_source='news-transcripts', use_cuda=True, validation=False, t
     return model
 
 
-def train_model(model=None, data_dir='news-transcripts', train_data_txt='rpunct_train_set.txt', val_data_txt='rpunct_val_set.txt', use_cuda=True, validation=False, epochs=3):
+def train_model(model_dir=None, data_dir='news-transcripts', epochs=3, use_cuda=True, validation=False):
     """
-    Trains simpletransformers model.
+    Builds (or loads) a transformer model and trains in for the punctuation recovery task using the input training dataset.
     Args:
-        - train_data_txt (str): File name where training dataset is stored (txt in Connl NER format).
-        - val_data_txt (str): File name where validation dataset is stored (txt in Connl NER format).
-        - use_cuda (bool): Toggle to run training on GPU (True) or CPU (False).
-        - validation (bool): Toggle to exploit validation set during training (validates performance every 5000 steps).
+        - model_dir (str): the name of the directory within `rpunct/outputs/` to load a pre-trained RPunct model from (or create a new model if None).
+        - data_dir (str): the name of the directory within `rpunct/training/datasets/` containing the prepared training data.
+        - epochs (int): the number of training epochs to execute.
+        - use_cuda (bool): toggle to run training on GPU (True) or CPU (False).
+        - validation (bool): toggle to use a pre-prepared validation set during training (validates performance every 5000 steps).
     """
-    # Create a NERModel
-    if model is None:
-        print("\t* Building NER model", end='\n\n')
+    # Create or load a simpletransformers NERModel to be the RPunct model
+    if model_dir is None:
+        print("\t* Building RPunct model", end='\n\n')
         model = NERModel(
             "bert",
             "bert-base-uncased",
@@ -74,11 +85,25 @@ def train_model(model=None, data_dir='news-transcripts', train_data_txt='rpunct_
             }
         )
     else:
-        print("\t* Loading NER model", end='\n\n')
+        print("\t* Loading RPunct model")
+        model_location = os.path.join('outputs', model_dir)
+
+        if os.path.isdir(model_location):
+            model = NERModel(
+                "bert",
+                model_location,
+                use_cuda=use_cuda,
+                args={
+                    "num_train_epochs": epochs
+                }
+            )
+            print(f"\t* Pre-trained model found at: {model_location}", end='\n\n')
+        else:
+            raise FileNotFoundError(f"Pre-trained model files could not be found at the path: {model_location}")
 
     # Train the model
-    train_data_path = os.path.join(PATH, data_dir, train_data_txt)
-    val_data_path = os.path.join(PATH, data_dir, val_data_txt)
+    train_data_path = os.path.join(PATH, data_dir, 'rpunct_train_set.txt')
+    val_data_path = os.path.join(PATH, data_dir, 'rpunct_val_set.txt')
     print(f"\n\t* Training model on dataset: {train_data_path}")
     print(f"\t* Validate model during training: {validation}", end='\n\n')
 
@@ -91,15 +116,17 @@ def plot_training(training, out_path='training/training_loss.png'):
     """
     Plots the progression of the loss function (validation metrics) computed at each 5000 steps during training.
     Args:
-        - training (dict): Global step count, and results of metric evalidations.
-        - out_path (str): The output file to which the generated training plot is saved.
+        - training (dict): global step count and results of metric evalidations for all complete training epochs.
+        - out_path (str): the output file path (from `rpunct/`) to save the generated training plot to.
     """
+    # Styling and data
     palette = sns.color_palette("Set2")
     fig, ax = plt.subplots(1, 1)
     keys = list(training.keys())
     keys.remove('global_step')
     count = 0
 
+    # Plotting
     for key in keys:
         sns.lineplot(ax=ax, x='global_step', y=key, data=training, color=palette[count % len(palette)])
         count += 1
@@ -110,9 +137,9 @@ def plot_training(training, out_path='training/training_loss.png'):
 
 
 if __name__ == "__main__":
-    # specify which training data to use and whether to use a GPU
+    # Specify which training data to use and whether to use a GPU
     data = 'news-transcripts'
     cuda = False
 
-    # run training pipeline using news data
+    # Run training pipeline using news data
     e2e_train(data_type=data, use_cuda=cuda)

@@ -21,7 +21,8 @@ CAPI_LABELS = ['O', 'C', 'U', 'M']
 VALID_LABELS = [f"{x}{y}" for y in CAPI_LABELS for x in PUNCT_LABELS]
 
 
-def e2e_data(data_type='news-transcripts', tt_split='90:10',
+def e2e_data(
+            data_type='news-transcripts', tt_split='90:10',
             start_year='2014', end_year='2022', summaries=False,
             composite_datasets_list=None, dataset_balance='o',
             validation=False, dataset_stats=False):

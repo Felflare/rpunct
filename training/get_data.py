@@ -22,7 +22,7 @@ def check_data_exists(data_source='news-transcripts', train_or_test='train'):
     """
     data_path = os.path.join(PATH, data_source, f"rpunct_{train_or_test}_set.txt")
     data_files_exist = os.path.isfile(data_path)
-    print(f"\n> Checking dataset exists:")
+    print("\n> Checking dataset exists:")
     print(f"\t* Required data file: {data_path}")
     print(f"\t* Found: {data_files_exist}")
 

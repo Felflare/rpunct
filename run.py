@@ -300,10 +300,10 @@ if __name__ == "__main__":
                 # run pipeline to build and train language model
                 e2e_train(
                     data_source=args.data,
+                    epochs=args.epochs,
                     use_cuda=args.cuda,
                     validation=args.val,
-                    training_plot=args.plot,
-                    epochs=args.epochs,
+                    training_plot=args.plot
                 )
             else:  # args.stage == 'test'
                 # run model testing pipeline
