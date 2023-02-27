@@ -8,3 +8,6 @@ tensorflow-macos>=2.10.0
 tensorflow-datasets>=4.6.0
 matplotlib>==3.6.0
 seaborn>=0.12.0
+jiwer
+num2words
+number_parser

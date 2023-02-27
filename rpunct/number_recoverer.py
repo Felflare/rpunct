@@ -8,7 +8,10 @@ import string
 from num2words import num2words
 from number_parser import parse as number_parser
 
-from punctuate import TERMINALS
+try:
+    from rpunct.punctuate import TERMINALS
+except ModuleNotFoundError:
+    from punctuate import TERMINALS
 
 LARGE_NUMBERS = ['million', 'billion', 'trillion']
 currencies = {

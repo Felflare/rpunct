@@ -4,16 +4,16 @@ from training.test import e2e_test
 from training.get_data import check_data_exists
 from training.prep_data import e2e_data
 from training.train import e2e_train
-from rpunct.punctuate import run_rpunct
+from rpunct.rpunct_recoverer import rpunct_main
 
 
 # Parser
 parser = argparse.ArgumentParser(description='Global run file to execute dataset preparation, model training, and testing.')
-subparsers = parser.add_subparsers(help="Specify which stage of the ML process to be executed: data preparation (`data`), training (`train`), testing (`test`), or inference (`punct`).", dest="stage")
+subparsers = parser.add_subparsers(help="Specify which stage of the ML process to be executed: data preparation (`data`), training (`train`), testing (`test`), or inference (`rpunct`).", dest="stage")
 data_parser = subparsers.add_parser('data', help='Execute data preparation process.')
 train_parser = subparsers.add_parser('train', help='Execute model training process.')
 test_parser = subparsers.add_parser('test', help='Execute model testing process.')
-punct_parser = subparsers.add_parser('punct', help='Run rpunct on a given input of plaintext.')
+punct_parser = subparsers.add_parser('rpunct', help='Run rpunct on a given input of plaintext.')
 
 # Data subparsers
 data_source_subparsers = data_parser.add_subparsers(help="Specify type of data to be prepared.", dest="data")
@@ -220,9 +220,9 @@ if __name__ == "__main__":
     print(pd.Series(vars(args)))
 
     # if calling for inference, run punctuate.py function
-    if args.stage == 'punct':
+    if args.stage == 'rpunct':
         # generate instance of rpunct model and run text through it
-        run_rpunct(
+        rpunct_main(
             model_location=args.model,
             input_txt=args.input,
             output_txt=args.output,

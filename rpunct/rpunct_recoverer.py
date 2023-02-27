@@ -10,17 +10,21 @@ import decimal
 from jiwer import wer
 from num2words import num2words
 
-from punctuate import RestorePuncts
-from number_recoverer import NumberRecoverer
+try:
+    from rpunct.punctuate import RestorePuncts
+    from rpunct.number_recoverer import NumberRecoverer
+except ModuleNotFoundError:
+    from punctuate import RestorePuncts
+    from number_recoverer import NumberRecoverer
 
 class RPunctRecoverer:
     """
     A class for loading the RPunct object and exposing it to linguine code.
     """
-    def __init__(self, model_source):
+    def __init__(self, model_source, use_cuda):
             self.recoverer = RestorePuncts(
                 model_source=model_source,
-                use_cuda=torch.cuda.is_available()
+                use_cuda=(use_cuda and torch.cuda.is_available())
             )
             self.number_recoverer = NumberRecoverer(
                 wordify_large_numbers=True,
@@ -86,42 +90,42 @@ class RPunctRecoverer:
     def word_error_rate(self, truth, stripped, predicted):
         wer_plaintext = wer(truth, stripped) * 100
         word_error_rate = wer(truth, predicted) * 100
-        print("\nWord error rate:")
+        print("Word error rate:")
         print(f"\tNo recovery     : {wer_plaintext:.2f}%")
         print(f"\tRPunct recovery : {word_error_rate:.2f}%", end='\n\n')
 
-    def run(self, input_path, output_path=None, clean_up_input=True, compute_wer=True):
+    def run(self, input_path, output_file_path=None, clean_up_input=True, compute_wer=False):
         # Read input text
-        print(f"\nReading plaintext from file: {input_path}")
+        print(f"\nReading input text from file: {input_path}")
         with open(input_path, 'r') as fp:
             input_text = fp.read()
 
-        # Convert truth transcript to plaintext (no punctuation)
+        # Convert input transcript to plaintext (no punctuation)
         if clean_up_input:
             plaintext = self.strip_punctuation(input_text)
         else:
             plaintext = input_text
 
-        # Use RPunct to punctuate plaintext
+        # Restore punctuation to plaintext using RPunct
         punctuated = self.recover(plaintext)
 
-        print("\nInput:", input_text, end='\n\n')
-        print("Plaintext:", plaintext, end='\n\n')
+        # print("\nInput:", input_text, end='\n\n')
+        # print("Plaintext:", plaintext, end='\n\n')
 
-        # Write output to TXT file or to the terminal
-        if output_path is None:
-            # print output to command line
-            print("\nPrinting punctuated text", end='\n\n')
-            print(punctuated)
+        # Output restored text (to a specified TXT file or the command line)
+        if not output_file_path:
+            # Output to command line
+            print("\nPrinting punctuated text:", end='\n\n')
+            print(punctuated, end='\n\n')
         else:
             # Check if output directory exists
-            output_dir, _ = os.path.split(output_path)
+            output_dir, _ = os.path.split(output_file_path)
             output_path_exists = os.path.isdir(output_dir)
 
-            # print punctuated text to output file
+            # Output to file if the directory exists
             if output_path_exists:
-                print(f"Writing punctuated text to file: {output_path}")
-                with open(output_path, 'w') as fp:
+                print(f"Writing punctuated text to file: {output_file_path}")
+                with open(output_file_path, 'w') as fp:
                     fp.write(punctuated)
             else:
                 raise FileNotFoundError(f"Directory specified to ouptut text file to does not exist: {output_dir}")
@@ -130,32 +134,24 @@ class RPunctRecoverer:
         if compute_wer:
             self.word_error_rate(input_text, plaintext, punctuated)
 
+        # # USING THIS TO FIND ERROR IN LENGTH DIFFERENCES
+        # # Comparing transcript lengths
+        # print(f"> Original transcript length = {len(plaintext.split(' '))}")
+        # print(f"> Restored transcript length = {len(punctuated.split(' '))}")
+        # print(f"\t * Hyphens added = words concatenated = {punctuated.count('-')}")
+        # print(f"\t * Currency symbols added = keywords removed = {punctuated.count('£') + punctuated.count('$') + punctuated.count('€')}")
+        # print(f"\t * Deminals added = point words removed = {plaintext.count(' point ')}")
 
-        # USING THIS TO FIND ERROR IN LENGTH DIFFERENCES
-        # Comparing transcript lengths
-        print(f"> Original transcript length = {len(plaintext.split(' '))}")
-        print(f"> Restored transcript length = {len(punctuated.split(' '))}")
-        print(f"\t * Hyphens added = words concatenated = {punctuated.count('-')}")
-        print(f"\t * Currency symbols added = keywords removed = {punctuated.count('£') + punctuated.count('$') + punctuated.count('€')}")
-        print(f"\t * Deminals added = point words removed = {plaintext.count(' point ')}")
 
+def rpunct_main(model_location, input_txt, output_txt=None, use_cuda=False):
+    # Generate an RPunct model instance
+    punct_model = RPunctRecoverer(model_source=model_location, use_cuda=use_cuda)
 
-def main(topic='full-ep', model='composite20_2e'):
-    # parameters
-    model_location = f'outputs/{model}'
-    input = f'tests/inferences/{topic}/truth.txt'
-    output = f'tests/inferences/{topic}/{model}.txt'
-    output = None
-
-    input = 'tests/inferences/competitor_comparisons/testdotwav_rpunct.txt'
-    output = 'tests/inferences/competitor_comparisons/testdotwav_plain.txt'
-
-    # generate instance of rpunct model
-    punct_model = RPunctRecoverer(model_source=model_location)
-
-    # run e2e pipeline
-    punct_model.run(input, output)
+    # Run e2e inference pipeline
+    punct_model.run(input_txt, output_txt)
 
 
 if __name__ == "__main__":
-    main()
+    model_default = 'outputs/clean-composite-1e'
+    input_default = 'tests/inferences/full-ep/truth.txt'
+    rpunct_main(model_default, input_default)
