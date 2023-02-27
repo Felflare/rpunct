@@ -263,7 +263,7 @@ def run_rpunct(model_location, input_txt, output_path=None, use_cuda:bool=False,
     punctuated = punct_model.punctuate(unpunct_text)
 
     # Output restored text
-    if not output_path:
+    if output_path is not None:
         # print output to command line
         print("\nPrinting punctuated text", end='\n\n')
         print(punctuated)

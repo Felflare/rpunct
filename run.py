@@ -274,10 +274,10 @@ if __name__ == "__main__":
         elif args.stage in ['train', 'test']:
             # run data preparation pipeline if dataset does not exist
             data_source = args.data
-            if args.data[:7] == 'news-20':  # articles between two dates
+            if args.data.startswith('news-20'):  # articles between two dates
                 data_type, data_start, data_end = args.data.split('-')
                 summaries = False
-            elif args.data[:8] == 'news-sum':  # summaries
+            elif args.data.startswith('news-sum'):  # summaries
                 data_type, summaries, data_start, data_end = 'news-articles', True, '', ''
             else:  # transcripts, composite, etc.
                 data_type, summaries, data_start, data_end = args.data, False, '', ''

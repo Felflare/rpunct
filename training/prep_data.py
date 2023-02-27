@@ -200,9 +200,9 @@ def create_record(text, mixed_casing=False):
         text_obs = pattern.sub('', text_obs)  # remove any non-alphanumeric characters
 
         # if word is the empty string, skip over this one
-        if text_obs == '':
+        if not text_obs:
             continue
-        elif text_obs[-1] == "'":  # remove trailing punctuation (only leave mid-word apostrophes)
+        elif text_obs.endswith("'"):  # remove trailing punctuation (only leave mid-word apostrophes)
             text_obs = text_obs[:-1]
 
         # if there is a punctuation mark after the word, add it to the label
