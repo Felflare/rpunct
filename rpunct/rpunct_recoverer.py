@@ -26,12 +26,7 @@ class RPunctRecoverer:
                 model_source=model_source,
                 use_cuda=(use_cuda and torch.cuda.is_available())
             )
-            self.number_recoverer = NumberRecoverer(
-                wordify_large_numbers=True,
-                correct_currencies=True,
-                correct_bbc_style=True,
-                correct_commas=True
-            )
+            self.number_recoverer = NumberRecoverer()
 
     def strip_punctuation(self, truth_text):
         """
@@ -150,5 +145,6 @@ def rpunct_main(model_location, input_txt, output_txt=None, use_cuda=False):
 
 if __name__ == "__main__":
     model_default = 'outputs/clean-composite-1e'
-    input_default = 'tests/inferences/full-ep/truth.txt'
+    # input_default = 'tests/inferences/full-ep/truth.txt'
+    input_default = 'tests/inferences/currencies/truth.txt'
     rpunct_main(model_default, input_default)

@@ -13,71 +13,46 @@ try:
 except ModuleNotFoundError:
     from punctuate import TERMINALS
 
-LARGE_NUMBERS = ['million', 'billion', 'trillion']
+
+STRING_NUMBERS = ['million', 'billion', 'trillion']
 currencies = {
     'pound': '£',
     'euro': '€',
     'dollar': '$'
 }
 
+
 class NumberRecoverer:
     """
-    Parent class for number recovery, initially just a wrapper around number_parser
+    Parent class for number recovery. Uses `number_parser` to convert numbers written in the natural language to their equivalent numeric forms.
     """
 
-    def __init__(self, wordify_large_numbers=True, correct_currencies=True, correct_bbc_style=True, correct_commas=True):
-        self.wordify_large_numbers = wordify_large_numbers
+    def __init__(self, correct_currencies=True, correct_bbc_style_numbers=True, comma_separators=True):
         self.correct_currencies = correct_currencies
-        self.correct_bbc_style = correct_bbc_style
-        self.correct_commas = correct_commas
-
-    def number_parser(self, text):
-        # BBC Style Guide asserts that single digit numbers should be written as words, so revert those numbers
-        # also ensure large number definitions remain as words in text by replacing with control characters
-        if self.wordify_large_numbers:
-            for index, number in enumerate(LARGE_NUMBERS):
-                text = text.replace(number, f"\\{index}")
-
-            # convert all other numbers to digits
-            parsed = number_parser(text)
-
-            # return control charcaters to words
-            for index, number in enumerate(LARGE_NUMBERS):
-                parsed = parsed.replace(f"\\{index}", number)
-        else:
-            # convert all other numbers to digits
-            parsed = number_parser(text)
-
-        return parsed
+        self.correct_bbc_style_numbers = correct_bbc_style_numbers
+        self.comma_separators = comma_separators
 
     def process(self, text):
         """
-        Apply number recovery to a text string
-
-        Args:
-            text: String of punctuated text.
-
-        Returns:
-            A string of where numerical words are converted to numbers where applicable.
+        Pipeline for recovering formatting of numbers within a piece of text.
         """
-        # convert numerical strings to digits in text
+        # Convert numerical strings to digits in text using `number_parser` package
         parsed_text = self.number_parser(text)
 
-        # number-parser adds spaces around numbers, so re-concatenate to any trailing punctuation
+        # Convert percentages to use the symbol notation
         parsed_text = parsed_text.replace(" percent", "%")
-        for punct in string.punctuation:
-            parsed_text = parsed_text.replace(f" {punct}", f"{punct}")
 
-        for key in currencies.keys():  # replace any hyphenated currency words
-            parsed_text = parsed_text.replace(f"-{key}", f" {key}")
+        # If we are correcting currencies, we don't want these words to be hidden mid-hyphenation
+        if self.correct_currencies:
+            for word in currencies.keys():
+                parsed_text = parsed_text.replace(f"-{word}", f" {word}")
 
-        # restore decimal point notation
+        # Restore decimal points
         parsed_list = parsed_text.split(" ")
         parsed_list = self.replace_decimal_points(parsed_list)
 
-        # Format the style of the output text
+        # Correct currencies, BBC styling of numbers, and insert currency separators into numbers >= 10,000
         output_text = ""
-
         for word in parsed_list:
             stripped_word = re.sub(r"[^0-9a-zA-Z]", "", word).lower()
 
@@ -86,54 +61,89 @@ class NumberRecoverer:
                     output_text = self.insert_currency_symbols(output_text, word)
 
             # BBC Style Guide asserts that single digit numbers should be written as words, so revert those numbers
-            elif self.correct_bbc_style and self.is_stylable(word):
+            elif self.correct_bbc_style_numbers and self.is_stylable_number(word):
                     output_text = self.bbc_style_numbers(output_text, word)
 
-            # Format long numbers into thousands separared with commas
-            elif self.correct_commas and stripped_word.isnumeric() and int(stripped_word) >= 10000:
-                output_text += self.insert_number_commas(word) + " "
+            # Format numbers with many digits to include comma separators
+            elif self.comma_separators and stripped_word.isnumeric() and int(stripped_word) >= 10000:
+                output_text += self.insert_comma_seperators(word) + " "
 
             else:
                 output_text += word + " "
 
+        # Remove any unwanted whitespace
         output_text = output_text.strip()
         output_text = output_text.replace(" - ", "-")
         output_text = output_text.replace("- ", "-")
 
         return output_text
 
-    def is_currency(self, word):
-        if word in currencies.keys() or (word[-1] == 's' and word[:-1] in currencies.keys()):
-            return True
-        else:
-            return False
+    def number_parser(self, text):
+        """
+        Converts numbers in text to digits instead of words.
+        Optionally very large (>= million) numbers can stay as words.
+        """
+        # BBC Style Guide asserts that single digit numbers should be written as words, so don't convert those numbers
+        # also ensure large number definitions remain as words in text
+        if self.bbc_style_numbers:
+            # Swap digits that we don't want to be parsed with control characters (from STRING_NUMBERS lookup table)
+            control_chars = list(enumerate(STRING_NUMBERS))
+            for index, number in control_chars:
+                text = text.replace(number, f"\\{index}")
 
-    def is_stylable(self, word):
-        if (word.isnumeric() and int(word) < 10) or (not word[-1].isnumeric() and word[:-1].isnumeric() and int(word[:-1]) < 10):
-            return True
+            # Convert all other numbers to digits
+            parsed = number_parser(text)
+
+            # Return control characters to words
+            control_chars.reverse()
+            for index, number in control_chars:
+                parsed = parsed.replace(f"\\{index}", number)
         else:
-            return False
+            parsed = number_parser(text)
+
+        # `number_parser` adds spaces around numbers, interrupting the formatting of any trailing punctuation, so re-concatenate
+        for punct in string.punctuation:
+            parsed = parsed.replace(f" {punct}", f"{punct}")
+
+        return parsed
+
+    def is_currency(self, word):
+        """Checks if a word is a currency term."""
+        return (word in currencies.keys()) or (word[-1] == 's' and word[:-1] in currencies.keys())
+
+    def is_stylable_number(self, number):
+        """Checks if a number is single digit and should be converted to a word according to the BBC Style Guide."""
+        # (Includes failsafe if number is immediately followed by a punctuation character)
+        return (number.isnumeric() and int(number) < 10) or (not number[-1].isnumeric() and number[:-1].isnumeric() and int(number[:-1]) < 10)
 
     @staticmethod
     def replace_decimal_points(text_list):
+        """
+        Correctly format numbers with decimal places (e.g. "1 point 5" -> "1.5").
+        """
         corrected_list = []
         i = 0
 
         while i < len(text_list):
+            # Cycle through words in the text until the word "point" appears (can't be the 1st or last word)
             word = text_list[i]
 
-            # check if the word "point" has appeared
             if re.sub(r"[^0-9a-zA-Z]", "", word) == "point" and i > 0 and i < len(text_list) - 1:
+                # When a case for decimal point formatting is identified, combine stripped full no. and decimal digits together around a `.` char
                 pre_word = text_list[i - 1]
                 pre_word_stripped = re.sub(",.?!%", "", pre_word)
                 post_word = text_list[i + 1]
                 post_word_stripped = re.sub(r"[^0-9a-zA-Z]", "", post_word)
 
+                # Ensure both words around the deminal point are numerical
+                # N.B. concatenate the original (not stripped) post word s.t. any trailing punctuation is preserved
                 if pre_word_stripped.isnumeric() and post_word_stripped.isnumeric():
                     full_number = pre_word_stripped + '.' + post_word
                     corrected_list = corrected_list[:-1]
                     corrected_list.append(full_number)
                     i += 2
+
+                # All other words are simply added back into the text
                 else:
                     corrected_list.append(word)
                     i += 1
@@ -144,7 +154,10 @@ class NumberRecoverer:
         return corrected_list
 
     def insert_currency_symbols(self, text, currency):
-        # get (singular) plaintext version of currency keyword
+        """
+        Converts currency terms in text to symbols before their respective numerical values.
+        """
+        # Get plaintext version of currency keyword
         stripped_currency = re.sub(r"[^0-9a-zA-Z]", "", currency).lower()
         if stripped_currency[-1] == 's':
             stripped_currency = stripped_currency[:-1]
@@ -152,20 +165,20 @@ class NumberRecoverer:
         found = False
         lookback = 1
 
-        # scan through lookback window to find a numeric word to punctuate with the currency symbol
-        while lookback < 4:
-            output_text_split = text.split(" ")
-            prev_word = output_text_split[-lookback]
+        # Scan through lookback window to find the number to which the currency symbol punctuates
+        text_list = text.split(" ")
+        while lookback < 5:
+            prev_word = text_list[-lookback]
             prev_word_stripped = re.sub(r"[^0-9a-zA-Z]", "", prev_word)
 
-            # when a numeric word is found, reconstruct the output text around this
+            # When a numeric word is found, reconstruct the output text around this (i.e. previous_text + currency_symbol + number + trailing_text)
             if prev_word_stripped.isnumeric():
-                new_output_text = output_text_split[:-lookback]  # text before currency symbol
-                new_output_text.append(currencies.get(stripped_currency) + prev_word)  # currency number
-                new_output_text.extend(output_text_split[-lookback + 1:])  # text after currency symbol
+                new_output_text = text_list[:-lookback]  # previous text before currency symbol
+                new_output_text.append(currencies.get(stripped_currency) + prev_word)  # currency symbol and number
+                new_output_text.extend(text_list[-lookback + 1:])  # trailing text after currency symbol/number
                 text = " ".join(new_output_text)
 
-                # add any punctuation trailing the original currency keyword
+                # Add back in any punctuation trailing the original currency keyword
                 if not currency[-1].isalnum():
                     text = text[:-1] + currency[-1] + " "
 
@@ -174,57 +187,61 @@ class NumberRecoverer:
             else:
                 lookback += 1
 
-        # keep the currency keyword as text if no numeric words found in lookback window
+        # Keep the currency keyword as text if no numeric words found in lookback window
         if not found:
             text += currency + " "
 
         return text
 
     def bbc_style_numbers(self, text, number):
-        # strip any trailing non-numeric characters
+        """
+        Converts small numbers back from digits to words (according to BBC Style Guide rules).
+        """
         if not number[-1].isnumeric():
+            # Don't convert number if it is involved with some mathematical/currency expression
             if number[-1] in ['%', '*', '+', '<', '>', '$', '£', '€']:
-                # add word to text
                 text += number + " "
                 return text
+            # But separate off any trailing punctuation other than this and continue
             else:
                 number, end_chars = number[:-1], number[-1]
         else:
             end_chars = ""
 
-        # return number to word notation
+        # Return number to word notation
         formatted_number = num2words(number)
 
-        # capitalise numeric word if at start of sentence
+        # Capitalise numeric word if at start of sentence
         if text == "" or (len(text) > 2 and text[-2] in TERMINALS):
             formatted_number = formatted_number.capitalize()
 
-        # add word to text
+        # Add word to text
         text += formatted_number + end_chars + " "
 
         return text
 
-    def insert_number_commas(self, number):
-        # strip leading non-numeric characters
+    def insert_comma_seperators(self, number):
+        """
+        Inserts comma separators into numbers with many digits to break up 1000s (e.g. '100000' -> '100,000').
+        """
+        # Strip leading non-numeric characters and trailing digits after the decimal point in floats
         if not number[0].isalnum():
             start_char = number[0]
             number = number[1:]
         else:
             start_char = ""
 
-        # strip any digits after the decimal point in floats
         if "." in number:
             number, end_chars = number.split(".")
             end_chars = "." + end_chars
         else:
             end_chars = ""
 
-        # cycle through number and insert commas every three digits
-        start_pos = len(number) - 3
-        for i in range(start_pos, 0, -3):
+        # Cycle through number in reverse order and insert comma separators every three digits
+        for i in range(len(number) - 3, 0, -3):
             number = number[:i] + "," + number[i:]
 
-        # reconcatenate leading/trailing chars/digits
+        # Reconcatenate leading/trailing chars/digits
         number = start_char + number + end_chars
 
         return number
