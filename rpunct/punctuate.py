@@ -6,8 +6,6 @@ __email__ = "daulet.nurmanbetov@gmail.com"
 
 import os
 import json
-import logging
-from langdetect import detect
 from simpletransformers.ner import NERModel
 
 PUNCT_LABELS = ['O', '.', ',', ':', ';', "'", '-', '?', '!', '%']
@@ -39,28 +37,18 @@ class RestorePuncts:
             }
         )
 
-    def punctuate(self, text:str, lang:str=''):
+    def punctuate(self, text:str):
         """
-        Performs punctuation restoration on plaintext (in English only - overrride using `lang='en'`).
+        Performs punctuation restoration on plaintext (in English only).
 
         Args:
             - text (str): text to punctuate, can be few words to as large as you want.
-            - lang (str): explicit language of input text.
 
         Returns:
             - punct_text (str): fully punctuated output text.
         """
-        # Throw error if text isn't written in english
-        if not lang and len(text) > 10:
-            lang = detect(text)
-
-        if lang != 'en':
-            raise Exception(f"Non English text detected. Restore Punctuation works only for English.\
-            If you are certain the input is English, pass argument lang='en' to this function.\
-            Input language detected: {lang}.")
-
         # Restoration pipeline
-        segments = self.split_on_toks(text)  # Format input text such that it can be easily passed to the transformer model
+        segments = self.segment_text_blocks(text)  # Format input text such that it can be easily passed to the transformer model
         preds_lst = [self.predict(i['text']) for i in segments]  # Generate word-level punctuation predictions
         combined_preds = self.combine_results(preds_lst, text)  # Combine a list of text segments and their predictions into a single sequence
         punct_text = self.punctuate_texts(combined_preds)  # Apply the punctuation predictions to the text
@@ -76,7 +64,7 @@ class RestorePuncts:
         return predictions
 
     @staticmethod
-    def split_on_toks(text:str, length:int=250, overlap:int=30):
+    def segment_text_blocks(text:str, length:int=250, overlap:int=30):
         """
         Splits a string of text into predefined slices of overlapping text with indexes linked back to the original text.
         This is done to bypass 512 token limit on transformer models by sequentially feeding segments of <512 tokens.
@@ -163,7 +151,7 @@ class RestorePuncts:
 
     def punctuate_texts(self, full_pred:list):
         """
-        Given a list of Predictions from the model, applies the predictions to the plaintext, restoring full punctuation and capitalisation.
+        Given a list of predictions from the model, applies the predictions to the plaintext, restoring full punctuation and capitalisation.
         """
         punct_resp = ""
 
@@ -284,7 +272,7 @@ def run_rpunct(model_location, input_txt, output_path=None, use_cuda:bool=False,
 if __name__ == "__main__":
     model = 'outputs/comp-perc-1e/'
     cuda = False
-    input = 'tests/inferences/boris/test.txt'
+    input = 'tests/inferences/full-ep/test.txt'
     output = 'output.txt'
 
     run_rpunct(

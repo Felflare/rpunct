@@ -60,20 +60,6 @@ class RPunctRecoverer:
         return plaintext
 
     def recover(self, transcript):
-        """
-        RPunct processes the entire block of text at once (but internally splits it into segments due to BERT
-        only being able to handle a certain input length)
-        This function flattens list of segments into a single block of text, then passes to RPunct
-
-        It then reconstructs the original segments from the punctuated output, while
-        applying additional capitalisation/full stops to the beginning and end of a segment, if not present
-
-        Args:
-            list_of_segs: a list of lists containing Item objects.
-
-        Returns:
-            A list of of lists containing Item objects (where each Item has added punctuation).
-        """
         # Process entire transcript, then retroactively apply punctuation to words in segments
         recovered = self.recoverer.punctuate(transcript, lang='en')
 
@@ -83,6 +69,7 @@ class RPunctRecoverer:
         return recovered
 
     def word_error_rate(self, truth, stripped, predicted):
+        # Uses `jiwer` to compute word error rates between punctuated and unpunctuated text
         wer_plaintext = wer(truth, stripped) * 100
         word_error_rate = wer(truth, predicted) * 100
         print("Word error rate:")
@@ -145,6 +132,5 @@ def rpunct_main(model_location, input_txt, output_txt=None, use_cuda=False):
 
 if __name__ == "__main__":
     model_default = 'outputs/clean-composite-1e'
-    # input_default = 'tests/inferences/full-ep/truth.txt'
-    input_default = 'tests/inferences/currencies/truth.txt'
+    input_default = 'tests/inferences/full-ep/truth.txt'
     rpunct_main(model_default, input_default)
