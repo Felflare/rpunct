@@ -21,8 +21,7 @@ CAPI_LABELS = ['O', 'C', 'U', 'M']
 VALID_LABELS = [f"{x}{y}" for y in CAPI_LABELS for x in PUNCT_LABELS]
 
 
-def e2e_data(
-            data_type='news-transcripts', tt_split='90:10',
+def e2e_data(data_type='news-transcripts', tt_split='90:10',
             start_year='2014', end_year='2022', summaries=False,
             composite_datasets_list=None, dataset_balance='o',
             validation=False, dataset_stats=False):
@@ -38,16 +37,14 @@ def e2e_data(
         - composite_datasets_list (list): collection of name tags of multiple data sources to include when constructing a composite dataset (requires `data_type = composite`).
         - dataset_balance (str): specifier to clip dataset sizes to be included in composite dataset in a given ratio to each other (in form `X:Y:...:Z`) (requires `data_type = composite`).
     """
-    split = 0  # split variable must always be defined s.t. it can be used to indicate which train/test stages to run
-
-    # generate/collect raw data
+    # Collect raw data from input source
     if data_type == 'news-articles':
-        # collect data from each JSONL file enumerating all BBC News articles for each year 2014-2022
+        # Gather articles data from each JSONL file enumerating all BBC News articles for each year 2014-2022
         print(f"\n> Preparing data from source: BBC News articles")
         data_source = 'news'
-        data_type = 'news-' + start_year + '-' + end_year
+        data_type = 'news-' + start_year + '-' + end_year  # data name tag
         tt_split = tt_split.split(':')
-        split = int(tt_split[0]) / 100
+        split = int(tt_split[0]) / 100  # training split
 
         if summaries:
             dataset_path = os.path.join(PATH, f'news-summaries')
@@ -59,14 +56,15 @@ def e2e_data(
         collate_news_articles(int(start_year), int(end_year), summary_or_body=article_size, train_split=split, output_directory=dataset_path)
 
     elif data_type == 'reviews':
-        # save training/testing datasets from tensorflow to local csv files
+        # Gather reviews data from tensorflow to local csv files
         print("\n> Preparing data from source: Yelp reviews")
         dataset_path = os.path.join(PATH, 'reviews')
         download_reviews(output_directory=dataset_path)
         data_source = data_type
+        split = 0.9
 
     elif data_type == 'news-transcripts':
-        # extract and process transcripts from JSON files
+        # Gather transcripts data from JSON files
         print(f"\n> Preparing data from source: BBC News transcripts")
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
@@ -76,7 +74,7 @@ def e2e_data(
         collate_news_transcripts(train_split=split, output_directory=dataset_path)
 
     elif data_type == 'subtitles':
-        # collect data from subtitles JSON files
+        # Gather subtitles data from JSON files
         print(f"\n> Preparing data from source: subtitles (all genres)")
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
@@ -86,7 +84,7 @@ def e2e_data(
         collate_subtitles(train_split=split, output_directory=dataset_path)
 
     elif data_type == 'composite':
-        # create composte dataset from multiple sources
+        # Create composte dataset from multiple sources
         print(f"\n> Assembling composite dataset containing: {composite_datasets_list}")
         tt_split = tt_split.split(':')
         split = int(tt_split[0]) / 100
@@ -98,15 +96,15 @@ def e2e_data(
     else:
         raise ValueError(f"Unrecognised data source: {data_type}")
 
-    # don't create test dataset if using 100% of data for training
-    if 1 - split == 0:
+    # Don't create test dataset if using 100% of data for training
+    if split == 1:
         stages = ['train']
     else:
         stages = ['train', 'test']
 
-    # create dataset for each stage (train/test)
+    # Create dataset for each stage (train/test)
     for stage in stages:
-        # constuct df of text and labels (punctuation tag per word)
+        # Constuct list of text and labels (punctuation tag per word)
         rpunct_dataset = create_rpunct_dataset(dataset_path, data_source, train_or_test=stage)
 
         create_training_samples(rpunct_dataset, data_source, file_out_path=dataset_path, train_or_test=stage)
@@ -137,36 +135,34 @@ def create_rpunct_dataset(directory, data_type, train_or_test='train', make_mc_d
     """
     print(f"\n> Generating RPunct dataset ({train_or_test.upper()}):")
 
-    # load in train/test data
+    # Load in train/test data from local file
     data_split_path = os.path.join(directory, f'{train_or_test}_{data_type}.csv')
     data_split = pd.read_csv(data_split_path)
     data_split.dropna(inplace=True)
     data_split.reset_index(drop=True, inplace=True)
 
-    # change inter-word dashes to commas
+    # Change inter-word dashes to commas (not supported)
     data_split['text'] = data_split['text'].str.replace(" -", ",")
 
-    # insert a space after intra-word hyphens
+    # Insert a space after intra-word hyphens (as part of pipeline for hyphenation reconstruction)
     data_split['text'] = data_split['text'].str.replace("-", "- ")
 
-    # only allow creation of mixed-case database if constructing a training dataset
+    # Toggle creation of mixed-case database (only allow if constructing a training dataset)
     make_mc_database = make_mc_database and train_or_test == 'train'
     mixed_case_database = {}
 
-    # constuct list of text and labels (punctuation tag per word) for primary (and possibly secondary) dataset
+    # Constuct list of text words and labels (punctuation tag per word) over the dataset
     all_records = []
     with tqdm(data_split['text']) as T:
         T.set_description(f"{' ' * 7} * Labelling {train_or_test}ing instances ")
         for segment in T:
-            # create a list enumerating each word in a single segment/article and its label: [...{id, word, label}...]
+            # Create a list enumerating each word in an input segment of text and its label: [...{id, word, label}...]
             record, mixed_case_instances = create_record(segment, mixed_casing=make_mc_database)
 
             if make_mc_database:
                 mixed_case_database.update(mixed_case_instances)
 
             all_records.extend(record)
-            del record
-            del mixed_case_instances
 
     if make_mc_database:
         with open('rpunct/mixed-casing.json', 'w') as f:
@@ -187,35 +183,30 @@ def create_record(text, mixed_casing=False):
         - new_obs (lst): a collection of dictionaries specifying each word-label pair to be added to the dataset (dict holds the index, plaintext, and punctuation label)
         - mixed_case (dict): output collection of plaintext-cased pairs relating to identified mixed-case words to be added to the mixed-case database (empty if `mixed_casing = False`)
     """
-    pattern = re.compile(r"[^0-9a-zA-Z']")
     new_obs = []
     mixed_case = {}
 
-    # convert string of text (from segment) into a list of words
-    observation = text.replace('\\n', ' ').split()
+    # Convert string of text (from segment) into a list of words
+    observation = text.replace('\n', ' ').split()
 
-    # remove punctuation of each word, and label it with a tag representing what punctuation it did have
+    # Remove punctuation of each word, and label it with a tag representing what punctuation it did have
     for obs in observation:
-        text_obs = obs.lower()  # set lowercase
-        text_obs = pattern.sub('', text_obs)  # remove any non-alphanumeric characters
+        # Convert word to plaintext
+        stripped_obs = re.sub(r"[^0-9a-zA-Z']", "", obs)
 
-        # if word is the empty string, skip over this one
-        if not text_obs:
+        if stripped_obs.endswith("'"):  # Remove any remaining trailing apostrophes (only leave mid-word apostrophes)
+            stripped_obs = stripped_obs[:-1]
+
+        if not stripped_obs:
             continue
-        elif text_obs.endswith("'"):  # remove trailing punctuation (only leave mid-word apostrophes)
-            text_obs = text_obs[:-1]
 
-        # if there is a punctuation mark after the word, add it to the label
+        # Collect trailing punctuation for this word's label
         if not obs[-1].isalnum():
             new_lab = obs[-1]
         else:
             new_lab = "O"  # `O` => no punctuation
 
-        stripped_obs = re.sub(r"[^0-9a-zA-Z]", "", obs)
-        if stripped_obs == '':
-            continue
-
-        # if the word is lowercase/capitalised/uppercase/mixed-case, add a descriptor to the label
+        # Add a capitalisation descriptor to the label
         if stripped_obs.islower() or stripped_obs.isnumeric():
             new_lab += "O"  # `xO` => lowercase (incl. numbers)
         elif stripped_obs.isupper():
@@ -225,23 +216,19 @@ def create_record(text, mixed_casing=False):
         else:
             new_lab += "M"  # `xM` => mixed-case
 
-            # populate database of mixed-case instances
+            # Populate database of mixed-case instances
             if mixed_casing:
-                less_stripped_obs = re.sub(r"[^0-9a-zA-Z']", "", obs)
+                if not stripped_obs[0].isalnum():
+                    stripped_obs = stripped_obs[1:]
 
-                if not less_stripped_obs[0].isalnum():
-                    less_stripped_obs = less_stripped_obs[1:]
+                if not stripped_obs[-1].isalnum():
+                    stripped_obs = stripped_obs[:-1]
 
-                if not less_stripped_obs[-1].isalnum():
-                    less_stripped_obs = less_stripped_obs[:-1]
+                if stripped_obs[-2:] != "'s" and stripped_obs[-1:] != 's' and stripped_obs.lower() not in mixed_case.keys():
+                    mixed_case.update({stripped_obs.lower(): stripped_obs})
 
-                if less_stripped_obs[-2:] != "'s" and less_stripped_obs[-1:] != 's' and text_obs not in mixed_case.keys():
-                    mixed_case.update({text_obs: less_stripped_obs})
-
-        # add the word and its label to the dataset
-        new_obs.append({'sentence_id': 0, 'words': text_obs, 'labels': new_lab})
-        del text_obs
-        del new_lab
+        # Add the word and its label to the dataset
+        new_obs.append({'sentence_id': 0, 'words': stripped_obs.lower(), 'labels': new_lab})
 
     return new_obs, mixed_case
 
@@ -259,7 +246,7 @@ def create_training_samples(words_and_labels, data_type, file_out_path=PATH, tra
         - train_or_test (str): specifier of whether to sace data as a training or testing dataset.
         - size (int): number of observations to save to a single output NPY file.
     """
-    # determine number of output files dependent on size of dataset
+    # Determine number of output files dependent on size of dataset
     num_words = len(words_and_labels)
     num_splits = math.ceil(num_words / size)
     random.seed(42)
@@ -268,16 +255,16 @@ def create_training_samples(words_and_labels, data_type, file_out_path=PATH, tra
     print("\n\t* Segmenting data into chunks:")
     print(f"\t\t- No. words in {train_or_test} set : {num_words}")
 
-    # segment primary dataset into `num_splits` chunks
+    # Segment dataset into `num_splits` chunks
     while _round < num_splits:
-        # locate the `_round`th chunk of dicts
+        # Locate the `_round`th chunk of word/label dicts (will be a single file)
         records = words_and_labels[size * _round: size * (_round + 1)]
 
-        # break main chunk of dicts (at this loop round) into smaller chunks of 500 words (`splits` = start/end indices of observation chunks)
+        # Break down this file's chunk of dicts into smaller chunks of 500 words (`splits` = start/end indices of observation chunks)
         splits = create_tokenized_obs(records)
         records = pd.DataFrame(records)
 
-        # cycle through the start/end chunk index tuples
+        # Cycle through the start/end chunk index tuples forming data blocks of uniform dimensions
         observations = np.empty(shape=(len(splits), 500, 3), dtype=object)
 
         with tqdm(range(len(splits))) as S:
@@ -288,13 +275,12 @@ def create_training_samples(words_and_labels, data_type, file_out_path=PATH, tra
                 data_slice = np.pad(data_slice, [(0, 500 - len(data_slice)), (0, 0)], 'empty')
 
                 observations[j] = data_slice  # add each list of 500 dicts to the dataset
-                del data_slice
 
-        # shuffle dataset of 500 word-label dicts
+        # Shuffle dataset of 500 word-label dicts
         _round += 1
         random.shuffle(observations)
 
-        # save split of dataset to a txt file
+        # Save this split of dataset to a distinct file
         out_file = f"{data_type}_{train_or_test}_{_round}.npy"
         out_path = os.path.join(file_out_path, out_file)
 
@@ -324,73 +310,70 @@ def create_tokenized_obs(input_list, num_toks=500, offset=250):
     loop_end = -1
     indices = []
 
-    # cycle through each list of dicts (global index, {word, label}) to break into chunks with a start index `start` and end index `end`
+    # Cycle through each list of dicts (global index, {word, label}) to break into chunks with a start index `start` and end index `end`
     for ix, i in enumerate(input_list):
-        # skip over the first 250 words that have been added to a chunk already (progress to end of offset)
+        # Skip over the first 250 words that have been added to a chunk already (progress to end of offset)
         if ix == loop_end:
             start = -1
 
-        # check if the current word is uppercase (so we can start all observations at the beginning of a sentence)
+        # Check if the current word is uppercase (so we can start all observations at the beginning of a sentence)
         if i['labels'][-1] == "C" and start == -1:
             start = ix  # start chunk from this uppercase word (i.e. start of a sentence)
             end = ix + num_toks  # the end of that chunk is 500 words later
             indices.append((start, end))  # enumerate the start and end of this chunk
             loop_end = start + offset  # identify end of offset s.t. loop can progress to the end of this offset and start searching again
 
-    # return list of tuples enumerating the start and end index of each chunk of words
     return indices
 
 
 def prepare_data(source='news-transcripts', train_or_test='train', validation=False, print_stats=False):
     """
-    Prepares data from Original text into Connnl formatted datasets ready for training
-    In addition constraints label space to only labels we care about
+    Prepares data from original text into Connnl formatted datasets ready for training.
+    In addition constraints label space to only labels we care about.
     """
     print("\n\t* Finalising output dataset:")
 
-    # create dataset paths
+    # Create output dataset paths
     output_txt = f'rpunct_{train_or_test}_set.txt'
     dataset_path = os.path.join(PATH, source, output_txt)
 
     val_output_txt='rpunct_val_set.txt'
     val_set_path = os.path.join(PATH, source, val_output_txt)
 
-    # load formatted data generated through `prep_data.py`
+    # Load formatted/labelled data from file chunks into single structure
     token_data = load_datasets(source, train_or_test)
 
-    # remove any invalid labels
+    # Remove any invalid labels
     clean_up_labels(token_data)
 
-    # split train/test datasets, convert each to a text file, and print dataset stats if desired
+    # Split train/validation datasets, convert each to a text file, and print dataset stats
     if validation:
-        # training & validation sets
+        # Training & validation sets
         split = math.ceil(0.9 * len(token_data))
-        train_set = token_data[:split].copy()
-        val_set = token_data[split:].copy()
+        train_set = token_data[:split]
+        val_set = token_data[split:]
 
-        # format validaton set as Connl NER txt file
+        # Format validaton set as Connl NER txt file
         print(f"\t\t- Validation dataset shape: ({len(val_set)}, {len(val_set[0])}, {len(val_set[0][0])})")
         create_text_file(val_set, val_set_path)
     else:
-        train_set = token_data.copy()
+        train_set = token_data
 
     print(f"\t\t- {train_or_test.replace('_', ' ').capitalize()}ing dataset shape {' ' * 7} : ({len(train_set)}, {len(train_set[0])}, {len(train_set[0][0])})")
 
-    # format training set as Connl NER txt file
+    # Format training set as Connl NER txt file
     create_text_file(train_set, dataset_path)
 
-    # remove temporary dataset files
+    # Remove temporary dataset files
     dataset_path = os.path.join(PATH, source)
     remove_temp_files(dataset_path, extensions=['npy', 'csv'], traintest='train')
 
-    # dataset statistics
+    # Dataset statistics of label distribution
     if print_stats:
-        # print label distribution in training set
         train_stats = get_label_stats(train_set)
         print(f"\t\t- {train_or_test.capitalize()}ing data statistics:")
         print(train_stats)
 
-        # print label distribution in validation set
         if validation:
             val_stats = get_label_stats(val_set)
             print(f"\t\t- Validation data statistics:")
@@ -399,7 +382,7 @@ def prepare_data(source='news-transcripts', train_or_test='train', validation=Fa
 
 def load_datasets(data_dir='reviews', train_or_test='train'):
     """
-    First, locate the data files generated from running `prep_data.py`.
+    First, locate the data files that were split into chunks.
     Then, given this list of data paths return a single data object containing all data slices.
     """
     # convert from dir name to file name
