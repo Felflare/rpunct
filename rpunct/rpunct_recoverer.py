@@ -109,9 +109,6 @@ class RPunctRecoverer:
         # Restore punctuation to plaintext using RPunct
         punctuated = self.recover(plaintext)
 
-        # print("\nInput:", input_text, end='\n\n')
-        # print("Plaintext:", plaintext, end='\n\n')
-
         # Output restored text (to a specified TXT file or the command line)
         if not output_file_path:
             # Output to command line
