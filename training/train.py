@@ -21,7 +21,8 @@ def e2e_train(
             epochs=3, use_cuda=True,
             validation=False, training_plot=False):
     """
-    Full pipeline for building and training a transformer-based RPunct model (using previously prepared RPunct dataset).
+    Full pipeline for building (or loading) and training a transformer-based RPunct model (using previously prepared RPunct dataset)
+    for the punctuation recovery task.
 
     Args:
         - model_source (str): the name of the directory within `rpunct/outputs/` to load a pre-trained RPunct model from (or create a new model if None).
@@ -32,38 +33,8 @@ def e2e_train(
         - training_plot (bool): generate an output plot of the progression of the validation loss (requires `validation = True`)
         every 5000 steps during training.
     """
-    # Create a simpletransformer model and use data to train it
-    print("\n> Building & training model:")
-    model, steps, tr_details = train_model(
-        model_dir=model_source,
-        data_dir=data_source,
-        use_cuda=use_cuda,
-        validation=validation,
-        epochs=epochs
-    )
-    print(f"\n\t* Steps: {steps}; Train details: {tr_details}")
-
-    # Plot the progression/convergence over training/validation
-    if validation and training_plot:
-        plot_training(tr_details)
-
-    print("\n> Model training complete", end='\n\n')
-
-    return model
-
-
-def train_model(model_dir=None, data_dir='news-transcripts', epochs=3, use_cuda=True, validation=False):
-    """
-    Builds (or loads) a transformer model and trains in for the punctuation recovery task using the input training dataset.
-    Args:
-        - model_dir (str): the name of the directory within `rpunct/outputs/` to load a pre-trained RPunct model from (or create a new model if None).
-        - data_dir (str): the name of the directory within `rpunct/training/datasets/` containing the prepared training data.
-        - epochs (int): the number of training epochs to execute.
-        - use_cuda (bool): toggle to run training on GPU (True) or CPU (False).
-        - validation (bool): toggle to use a pre-prepared validation set during training (validates performance every 5000 steps).
-    """
     # Create or load a simpletransformers NERModel to be the RPunct model
-    if model_dir is None:
+    if model_source is None:
         print("\t* Building RPunct model", end='\n\n')
         model = NERModel(
             "bert",
@@ -86,7 +57,7 @@ def train_model(model_dir=None, data_dir='news-transcripts', epochs=3, use_cuda=
         )
     else:
         print("\t* Loading RPunct model")
-        model_location = os.path.join('outputs', model_dir)
+        model_location = os.path.join('outputs', model_source)
 
         if os.path.isdir(model_location):
             model = NERModel(
@@ -102,14 +73,21 @@ def train_model(model_dir=None, data_dir='news-transcripts', epochs=3, use_cuda=
             raise FileNotFoundError(f"Pre-trained model files could not be found at the path: {model_location}")
 
     # Train the model
-    train_data_path = os.path.join(PATH, data_dir, 'rpunct_train_set.txt')
-    val_data_path = os.path.join(PATH, data_dir, 'rpunct_val_set.txt')
+    train_data_path = os.path.join(PATH, data_source, 'rpunct_train_set.txt')
+    val_data_path = os.path.join(PATH, data_source, 'rpunct_val_set.txt')
     print(f"\n\t* Training model on dataset: {train_data_path}")
     print(f"\t* Validate model during training: {validation}", end='\n\n')
 
     steps, tr_details = model.train_model(train_data_path, eval_data=val_data_path)
+    print(f"\n\t* Steps: {steps}; Train details: {tr_details}")
 
-    return model, steps, tr_details
+    # Plot the progression/convergence over training/validation
+    if validation and training_plot:
+        plot_training(tr_details)
+
+    print("\n> Model training complete", end='\n\n')
+
+    return model
 
 
 def plot_training(training, out_path='training/training_loss.png'):
