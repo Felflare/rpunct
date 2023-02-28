@@ -24,7 +24,8 @@ currencies = {
 
 class NumberRecoverer:
     """
-    Parent class for number recovery. Uses `number_parser` to convert numbers written in the natural language to their equivalent numeric forms.
+    Parent class for number recovery. Uses `number_parser` (https://pypi.org/project/number-parser/)
+    to convert numbers written in the natural language to their equivalent numeric forms.
     """
 
     def __init__(self, correct_currencies=True, correct_bbc_style_numbers=True, comma_separators=True):
